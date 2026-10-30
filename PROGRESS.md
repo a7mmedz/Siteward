@@ -14,7 +14,10 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - [x] Phase 8 — End-to-end tests
 - [x] Phase 9 — Deployment prep
 - [x] Phase 10 — Documentation
-- [ ] Phase 11 — Final check
+- [x] Phase 11 — Final check
+
+**Status: complete (v1.0.0).** All phases done; lint, typecheck, 49 backend + 23 frontend tests and
+11 end-to-end tests pass; production builds succeed. Only human-only tasks remain (below).
 
 ## Log
 
@@ -78,6 +81,17 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - Audit re-checked: `deepmerge-ts` (via the Prisma 6 CLI) was re-rated high during the build. An `overrides` pin broke the Prisma CLI and was reverted; the finding is documented in ADR-005 and the README, with the Prisma 7 upgrade as the fix.
 - Backend `dev` script now pipes logs through `pino-pretty`.
 
+### Phase 11 — Final check
+- Fresh-clone simulation: cloned the repo into an empty directory, stopped the working database and started a brand-new one, then followed the README from zero: `npm install` → `.env` from the example → `db:up` → `db:migrate` → `db:seed` → `npm run dev` (health OK, sign-in OK, app served) → `lint` ✓ → `typecheck` ✓ (0 errors) → `npm test` ✓ (49 + 23) → `npm run test:e2e` ✓ (11/11) → `npm run build` ✓. No README changes were needed.
+- Secret scan of tracked files and full git history: only `.env.example` templates are tracked; no tokens, keys or real connection strings; the local `.env` values appear nowhere in history. Test-only credentials (Vitest fixtures, the throwaway e2e database) are clearly labelled.
+- Tagged `v1.0.0`.
+
 ## Needs human
 
+Everything below needs accounts, real secrets or a person; the repository is ready for each step.
+
 - [ ] **Deploy** following [docs/DEPLOY.md](docs/DEPLOY.md): create the Neon database, the Render service (Blueprint from `render.yaml`) and the Vercel project (root `frontend`); set `DATABASE_URL`, `CORS_ORIGIN`, `SEED_*_PASSWORD` on Render and `VITE_API_URL` on Vercel; run the seed once.
+- [ ] **Paste the live URLs** (frontend, API, `/api/docs`) into the README: the banner at the top and section 4 "Demo and access". Then change AC10 in the README table from ⚠️ to ✅.
+- [ ] **Share the demo passwords** with reviewers outside the repository.
+- [ ] **Record the demo video** following [docs/demo-script.md](docs/demo-script.md) (warm up the Render API first: cold start).
+- [ ] Optional hardening after deploy: add a Content-Security-Policy on Vercel with the final API host in `connect-src` (ADR-021); plan the Prisma 7 upgrade to clear the build-tool audit findings (ADR-005).
