@@ -126,3 +126,10 @@ Short ADRs: context, decision, alternative considered, tradeoff. Newest decision
 - **Decision:** `vite-plugin-pwa` (`generateSW`) precaches every build asset (HTML, JS, CSS, Inter font files, icons); navigations fall back to the cached `index.html` (SPA routes like `/inspections/:id` work offline); `/api/*` is excluded. API responses are never cached by the service worker: data lives in IndexedDB and is refreshed only by the sync engine. `registerType: 'prompt'` + `clientsClaim`: the first install controls the page immediately; later versions wait until the user taps **Reload**, so a form is never reloaded mid-edit.
 - **Alternative:** `autoUpdate` (silent reloads); runtime caching of GET responses (stale-while-revalidate).
 - **Tradeoff:** One extra tap to update; a single source of truth for data (IndexedDB) instead of two caches that can disagree.
+
+## ADR-020 — End-to-end harness: real stack, production build, non-destructive DB setup
+
+- **Context:** The offline scenarios need a real service worker, and the six demo scenarios must be repeatable.
+- **Decision:** Playwright starts its own backend (`:4100`, database `siteward_e2e`, `DEMO_TOOLS=true`) and the production frontend build (`vite preview` on `:4174`), and runs serially in a Pixel 7 (Chromium) profile. Offline is `context.setOffline(true)`; "server down" is `page.route(…).abort()`; server failures use the demo endpoint. Global setup runs `prisma migrate deploy` + the idempotent seed: **it never drops data**. Prisma blocks `migrate reset` when run by an AI agent without the user's explicit consent, and a reset is not needed: tests use per-run unique titles and relative counts.
+- **Alternative:** Reset the database before each run; run against the Vite dev server.
+- **Tradeoff:** The e2e database grows across runs (harmless; `docker compose down -v` clears it). Tests exercise exactly what ships.

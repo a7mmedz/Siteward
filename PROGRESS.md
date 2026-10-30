@@ -11,7 +11,7 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - [x] Phase 5 — Sync engine
 - [x] Phase 6 — UI screens
 - [x] Phase 7 — PWA / offline
-- [ ] Phase 8 — End-to-end tests
+- [x] Phase 8 — End-to-end tests
 - [ ] Phase 9 — Deployment prep
 - [ ] Phase 10 — Documentation
 - [ ] Phase 11 — Final check
@@ -60,6 +60,12 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - `vite-plugin-pwa`: precached app shell (27 entries incl. fonts and icons), SPA navigation fallback (API excluded), manifest in the blue theme with generated icons (192, 512, maskable, apple-touch, favicon), update prompt.
 - Offline banner; cached user + token let the app open signed-in with no network.
 - Verified on the production build (`vite preview`) with the backend process stopped and Chromium offline: app opens, lists saved inspections, creates and edits an inspection, survives two reloads; header shows `Offline · 1 pending`.
+
+### Phase 8 — End-to-end tests
+- Playwright suite in `e2e/` (11 tests) mirroring the required demonstration: online workflow + validation + access control (AC1, AC2, AC9); offline reload/edit/create/reload and reconnect with server = client (AC3–AC5); lost response → duplicate and debug replay (AC6); conflict → keep mine / keep server (AC7); 500s and unreachable server → queued → recovery (AC8); Swagger UI (AC10).
+- Runs against the production build with a real service worker and an isolated backend/database. 11/11 passed on three consecutive runs.
+- Evidence: 16 screenshots and `e2e-results.txt` in `docs/evidence/`.
+- Note: Prisma refuses `migrate reset` from an AI agent without user consent; the harness uses non-destructive `migrate deploy` + seed instead (ADR-020).
 
 ## Needs human
 
