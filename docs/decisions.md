@@ -119,3 +119,10 @@ Short ADRs: context, decision, alternative considered, tradeoff. Newest decision
 
 - **Context:** PLAN.md suggests a `frontend-design` skill; it is not installed in this environment.
 - **Decision:** Use the installed `frontend-ui-engineering` skill (app screens, accessibility, design-system adherence) for Phases 4 and 6, and Playwright directly for end-to-end tests (the installed browser skill needs a Chrome DevTools MCP server that is not configured).
+
+## ADR-019 — Service worker: precached app shell, prompt to update, no API caching
+
+- **Context:** The app must open offline after one online visit (AC3) without serving stale data from HTTP caches.
+- **Decision:** `vite-plugin-pwa` (`generateSW`) precaches every build asset (HTML, JS, CSS, Inter font files, icons); navigations fall back to the cached `index.html` (SPA routes like `/inspections/:id` work offline); `/api/*` is excluded. API responses are never cached by the service worker: data lives in IndexedDB and is refreshed only by the sync engine. `registerType: 'prompt'` + `clientsClaim`: the first install controls the page immediately; later versions wait until the user taps **Reload**, so a form is never reloaded mid-edit.
+- **Alternative:** `autoUpdate` (silent reloads); runtime caching of GET responses (stale-while-revalidate).
+- **Tradeoff:** One extra tap to update; a single source of truth for data (IndexedDB) instead of two caches that can disagree.

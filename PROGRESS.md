@@ -10,7 +10,7 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - [x] Phase 4 — Frontend foundation + local data
 - [x] Phase 5 — Sync engine
 - [x] Phase 6 — UI screens
-- [ ] Phase 7 — PWA / offline
+- [x] Phase 7 — PWA / offline
 - [ ] Phase 8 — End-to-end tests
 - [ ] Phase 9 — Deployment prep
 - [ ] Phase 10 — Documentation
@@ -55,6 +55,11 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - Sites (counts per site, one-tap New), site detail, inspections list (All / Drafts / Submitted / Needs attention tabs, sync badge per row, inspector name for supervisors), inspection editor (pass/fail/N/A radio groups, comments, notes, 500 ms autosave to IndexedDB, progress, grouped error summary + inline errors, submit, delete draft, read-only when submitted for inspectors, supervisor reopen), conflict screen (Your version vs Server version, differences highlighted, Keep mine / Keep server, guard when the server copy is locked), rejected-change notice with Discard, debug panel (`?debug=1`: engine state, outbox, last sync, Force retry last batch, supervisor failure buttons).
 - Loading skeletons, empty states, offline banner; 44 px tap targets, labelled controls, visible focus, status never shown by colour alone, light + dark tokens.
 - Verified in Chromium against the local stack (390 px and 1280 px): validation on submit, full fill + submit (server: submitted, v2), offline edit → supervisor edit → `1 conflict` → Keep mine (server v3 has the inspector note), debug panel. No console errors.
+
+### Phase 7 — PWA / offline
+- `vite-plugin-pwa`: precached app shell (27 entries incl. fonts and icons), SPA navigation fallback (API excluded), manifest in the blue theme with generated icons (192, 512, maskable, apple-touch, favicon), update prompt.
+- Offline banner; cached user + token let the app open signed-in with no network.
+- Verified on the production build (`vite preview`) with the backend process stopped and Chromium offline: app opens, lists saved inspections, creates and edits an inspection, survives two reloads; header shows `Offline · 1 pending`.
 
 ## Needs human
 
