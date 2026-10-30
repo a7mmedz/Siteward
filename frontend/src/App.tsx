@@ -3,6 +3,10 @@ import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { Layout } from './components/Layout';
 import { LoginPage } from './pages/LoginPage';
 import { SitesPage } from './pages/SitesPage';
+import { SitePage } from './pages/SitePage';
+import { InspectionsPage } from './pages/InspectionsPage';
+import { InspectionEditorPage } from './pages/InspectionEditorPage';
+import { ConflictPage } from './pages/ConflictPage';
 
 function RequireAuth() {
   const { status } = useAuth();
@@ -27,6 +31,10 @@ export function App() {
           <Route element={<RequireAuth />}>
             <Route element={<Layout />}>
               <Route index element={<SitesPage />} />
+              <Route path="sites/:siteId" element={<SitePage />} />
+              <Route path="inspections" element={<InspectionsPage />} />
+              <Route path="inspections/:id" element={<InspectionEditorPage />} />
+              <Route path="inspections/:id/conflict" element={<ConflictPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Route>

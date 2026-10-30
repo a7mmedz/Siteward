@@ -109,6 +109,12 @@ export function createApi(fetchImpl: Fetch = (...args) => fetch(...args), baseUr
         method: 'POST',
         body: { ops },
       }),
+    /** Demo tools (supervisor, DEMO_TOOLS=true): fail the next N syncs. */
+    devFailNextSync: (count: number, mode: 'before' | 'after') =>
+      request<{ scheduled: number; mode: string }>('/dev/fail-next-sync', {
+        method: 'POST',
+        body: { count, mode },
+      }),
   };
 }
 

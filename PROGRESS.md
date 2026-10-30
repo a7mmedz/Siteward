@@ -9,7 +9,7 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - [x] Phase 3 — Sync endpoint
 - [x] Phase 4 — Frontend foundation + local data
 - [x] Phase 5 — Sync engine
-- [ ] Phase 6 — UI screens
+- [x] Phase 6 — UI screens
 - [ ] Phase 7 — PWA / offline
 - [ ] Phase 8 — End-to-end tests
 - [ ] Phase 9 — Deployment prep
@@ -50,6 +50,11 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 ### Phase 5 — Sync engine
 - `frontend/src/sync/engine.ts`: push (≤ 50 ops, one op per record per round, parked records skipped), per-result handling (applied / duplicate → rebase follow-ups; conflict → park + serverCopy; rejected → error + drop), pull (sites, template, incremental inspections; never overwrites unsynced records; full pull removes stale synced rows), lock with one follow-up run, backoff 2s→60s, 401 → `Sign in to sync` with data kept, triggers (start, `online`, 30 s interval, debounced local change, Sync now), debug replay of the last batch.
 - Tests: 23 Vitest tests with `fake-indexeddb` and a fake server behind a mocked `fetch` (pending → applied, coalescing, in-flight edit rebase, duplicate after lost response, replay, conflict + keep mine / keep server, rejection, network/500 backoff and recovery, 401, offline, lock, reload persistence, pull, header labels, client validation). A deliberate mutation of the rebase step is caught by two tests.
+
+### Phase 6 — UI screens
+- Sites (counts per site, one-tap New), site detail, inspections list (All / Drafts / Submitted / Needs attention tabs, sync badge per row, inspector name for supervisors), inspection editor (pass/fail/N/A radio groups, comments, notes, 500 ms autosave to IndexedDB, progress, grouped error summary + inline errors, submit, delete draft, read-only when submitted for inspectors, supervisor reopen), conflict screen (Your version vs Server version, differences highlighted, Keep mine / Keep server, guard when the server copy is locked), rejected-change notice with Discard, debug panel (`?debug=1`: engine state, outbox, last sync, Force retry last batch, supervisor failure buttons).
+- Loading skeletons, empty states, offline banner; 44 px tap targets, labelled controls, visible focus, status never shown by colour alone, light + dark tokens.
+- Verified in Chromium against the local stack (390 px and 1280 px): validation on submit, full fill + submit (server: submitted, v2), offline edit → supervisor edit → `1 conflict` → Keep mine (server v3 has the inspector note), debug panel. No console errors.
 
 ## Needs human
 
