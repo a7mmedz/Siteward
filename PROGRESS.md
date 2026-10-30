@@ -13,7 +13,7 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - [x] Phase 7 — PWA / offline
 - [x] Phase 8 — End-to-end tests
 - [x] Phase 9 — Deployment prep
-- [ ] Phase 10 — Documentation
+- [x] Phase 10 — Documentation
 - [ ] Phase 11 — Final check
 
 ## Log
@@ -71,6 +71,12 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - `render.yaml` (API web service: build, migrate-on-start, health check, env vars with generated `JWT_SECRET`), `frontend/vercel.json` (workspace install, SPA rewrites, cache + security headers), build guard for a missing `VITE_API_URL` on Vercel.
 - `docs/DEPLOY.md`: Neon → Render → Vercel step by step, env vars, seeding, verification, cold start, troubleshooting, rollback.
 - Verified locally: `npm run build` succeeds; the compiled API starts with `NODE_ENV=production` (health, Swagger, HSTS/CSP headers OK); the frontend build embeds the configured API URL.
+
+### Phase 10 — Documentation
+- `README.md` with the seven required sections, the AC table (every criterion linked to tests and screenshots), setup with versions/inputs/expected results, demo access, verification results, limitations, libraries + licenses, and the AI assistance and contribution section.
+- `docs/architecture.md` (system, components, data model, online/offline write, sync, conflict — Mermaid), `docs/sync-protocol.md` (outbox, push/pull, server rules, sequence diagrams, offline limits), `docs/demo-script.md` (live demo / recording script), `docs/decisions.md` (22 ADRs, incl. all those PLAN.md requires).
+- Audit re-checked: `deepmerge-ts` (via the Prisma 6 CLI) was re-rated high during the build. An `overrides` pin broke the Prisma CLI and was reverted; the finding is documented in ADR-005 and the README, with the Prisma 7 upgrade as the fix.
+- Backend `dev` script now pipes logs through `pino-pretty`.
 
 ## Needs human
 

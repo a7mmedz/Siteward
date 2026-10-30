@@ -30,11 +30,14 @@ Short ADRs: context, decision, alternative considered, tradeoff. Newest decision
 - **Decision:** Docker Compose maps Postgres 16 to `localhost:5433` and creates `siteward` (dev), `siteward_test` (Vitest) and `siteward_e2e` (Playwright). The local `siteward/siteward` credentials only exist inside the local container.
 - **Tradeoff:** One more port to remember; tests are isolated and repeatable.
 
-## ADR-005 — Low-severity audit findings accepted
+## ADR-005 — Audit findings in build-time tooling accepted (for now)
 
-- **Context:** `npm audit` reports 4 low-severity advisories (`deepmerge`, `deepmerge-ts`) reached only through build-time tooling (`@prisma/config`, `workbox-build`).
-- **Decision:** Accept them; do not `npm audit fix --force` (it downgrades/breaks majors). They never ship to the browser or run on untrusted input.
-- **Tradeoff:** Audit is not "zero"; revisit when upstream releases fixes.
+- **Context:** `npm audit` reports 7 findings, all in development/build tooling; none is in code that ships to the browser or handles requests.
+  - **3 high:** `deepmerge-ts < 8` (stack exhaustion when merging recursive object graphs), reached only through the Prisma 6 CLI's config loader (`prisma → @prisma/config`), which merges Prisma's own configuration, never request data. It was rated low when the project started and re-rated high during the build.
+  - **4 low:** `deepmerge` prototype poisoning, reached only through `vite-plugin-pwa → workbox-build` at build time.
+- **Decision:** Accept for this release. `npm audit fix --force` would move Prisma to v7 (new generator, driver adapters) and downgrade vite-plugin-pwa to 0.2, both breaking. An npm `overrides` pin of `deepmerge-ts@^8` was tried and reverted: it left the Prisma CLI unable to load its config.
+- **Follow-up:** Upgrade to Prisma 7 (removes the high findings) as the first maintenance task; re-run `npm audit` after every dependency update.
+- **Tradeoff:** Audit is not clean; exposure is limited to developer/CI machines processing trusted configuration.
 
 ## ADR-006 — Checklist template table and endpoint
 
@@ -141,3 +144,10 @@ Short ADRs: context, decision, alternative considered, tradeoff. Newest decision
 - **Alternative:** One host serving both (Render static + API, or Fly.io); Railway; Render Postgres.
 - **Tradeoff:** Three dashboards and a CORS setting to keep in sync; each tier is free and HTTPS by default. The free Render service sleeps when idle (~30–60 s cold start) — acceptable because the client is offline-first and retries with backoff.
 - **Not done:** a Content-Security-Policy on the Vercel side, because `connect-src` depends on the final API URL; adding `default-src 'self'; connect-src 'self' https://<api-host>` is a recommended hardening step after deploy.
+
+## ADR-022 — Inspection ids are generated on the client
+
+- **Context:** An inspection created offline must be addressable (URL, follow-up edits, outbox ops) long before the server sees it.
+- **Decision:** The client assigns `crypto.randomUUID()` (v4) as the inspection id at creation; the server stores it as the primary key and validates it as a UUID. A create for an id that already exists is answered `duplicate` (or `FORBIDDEN` if someone else owns it) instead of inserting a second row, so creates are idempotent even without the `opId` check.
+- **Alternative:** Server-generated ids with a temporary client id remapped after the first sync.
+- **Tradeoff:** No id remapping across the outbox, URLs and UI state; relies on UUID v4 collision resistance (negligible) and on the server never trusting ids for ownership (`inspectorId` always comes from the token).
