@@ -1,0 +1,10 @@
+node_modules
+dist
+dev-dist
+coverage
+package-lock.json
+backend/prisma/migrations
+docs/evidence
+e2e/test-results
+e2e/playwright-report
+*.md

@@ -1,0 +1,22 @@
+# Local development database. Creates siteward (dev), siteward_test (Vitest) and siteward_e2e (Playwright).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: siteward
+      POSTGRES_PASSWORD: siteward
+      POSTGRES_DB: siteward
+    ports:
+      - '5433:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U siteward']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:
