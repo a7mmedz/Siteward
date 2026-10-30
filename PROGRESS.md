@@ -8,7 +8,7 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - [x] Phase 2 — Backend core
 - [x] Phase 3 — Sync endpoint
 - [x] Phase 4 — Frontend foundation + local data
-- [ ] Phase 5 — Sync engine
+- [x] Phase 5 — Sync engine
 - [ ] Phase 6 — UI screens
 - [ ] Phase 7 — PWA / offline
 - [ ] Phase 8 — End-to-end tests
@@ -46,6 +46,10 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - Sync engine written (`frontend/src/sync/`); its tests land in Phase 5.
 - Layout: header with logo, always-visible sync indicator + Sync now, sign-out (warns about unsynced changes), offline banner, mobile bottom nav. Login page with validation, re-auth mode, and a guard against silently discarding another user's unsynced work.
 - Verified in Chromium against the local backend: sign in → initial pull → sites shown from IndexedDB → `Online · Synced`. Typecheck, build, lint pass.
+
+### Phase 5 — Sync engine
+- `frontend/src/sync/engine.ts`: push (≤ 50 ops, one op per record per round, parked records skipped), per-result handling (applied / duplicate → rebase follow-ups; conflict → park + serverCopy; rejected → error + drop), pull (sites, template, incremental inspections; never overwrites unsynced records; full pull removes stale synced rows), lock with one follow-up run, backoff 2s→60s, 401 → `Sign in to sync` with data kept, triggers (start, `online`, 30 s interval, debounced local change, Sync now), debug replay of the last batch.
+- Tests: 23 Vitest tests with `fake-indexeddb` and a fake server behind a mocked `fetch` (pending → applied, coalescing, in-flight edit rebase, duplicate after lost response, replay, conflict + keep mine / keep server, rejection, network/500 backoff and recovery, 401, offline, lock, reload persistence, pull, header labels, client validation). A deliberate mutation of the rebase step is caught by two tests.
 
 ## Needs human
 
