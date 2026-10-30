@@ -12,7 +12,7 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - [x] Phase 6 — UI screens
 - [x] Phase 7 — PWA / offline
 - [x] Phase 8 — End-to-end tests
-- [ ] Phase 9 — Deployment prep
+- [x] Phase 9 — Deployment prep
 - [ ] Phase 10 — Documentation
 - [ ] Phase 11 — Final check
 
@@ -67,6 +67,11 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - Evidence: 16 screenshots and `e2e-results.txt` in `docs/evidence/`.
 - Note: Prisma refuses `migrate reset` from an AI agent without user consent; the harness uses non-destructive `migrate deploy` + seed instead (ADR-020).
 
+### Phase 9 — Deployment prep
+- `render.yaml` (API web service: build, migrate-on-start, health check, env vars with generated `JWT_SECRET`), `frontend/vercel.json` (workspace install, SPA rewrites, cache + security headers), build guard for a missing `VITE_API_URL` on Vercel.
+- `docs/DEPLOY.md`: Neon → Render → Vercel step by step, env vars, seeding, verification, cold start, troubleshooting, rollback.
+- Verified locally: `npm run build` succeeds; the compiled API starts with `NODE_ENV=production` (health, Swagger, HSTS/CSP headers OK); the frontend build embeds the configured API URL.
+
 ## Needs human
 
-_Nothing yet._
+- [ ] **Deploy** following [docs/DEPLOY.md](docs/DEPLOY.md): create the Neon database, the Render service (Blueprint from `render.yaml`) and the Vercel project (root `frontend`); set `DATABASE_URL`, `CORS_ORIGIN`, `SEED_*_PASSWORD` on Render and `VITE_API_URL` on Vercel; run the seed once.

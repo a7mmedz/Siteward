@@ -133,3 +133,11 @@ Short ADRs: context, decision, alternative considered, tradeoff. Newest decision
 - **Decision:** Playwright starts its own backend (`:4100`, database `siteward_e2e`, `DEMO_TOOLS=true`) and the production frontend build (`vite preview` on `:4174`), and runs serially in a Pixel 7 (Chromium) profile. Offline is `context.setOffline(true)`; "server down" is `page.route(…).abort()`; server failures use the demo endpoint. Global setup runs `prisma migrate deploy` + the idempotent seed: **it never drops data**. Prisma blocks `migrate reset` when run by an AI agent without the user's explicit consent, and a reset is not needed: tests use per-run unique titles and relative counts.
 - **Alternative:** Reset the database before each run; run against the Vite dev server.
 - **Tradeoff:** The e2e database grows across runs (harmless; `docker compose down -v` clears it). Tests exercise exactly what ships.
+
+## ADR-021 — Hosting: Vercel (frontend) + Render (API) + Neon (database)
+
+- **Context:** AC10 needs frontend and backend hosted separately over HTTPS, on free tiers.
+- **Decision:** Static PWA on Vercel (root `frontend/`, SPA rewrites, `sw.js` never cached); Express API on Render from `render.yaml` (build at repo root for the workspace lockfile and `docs/openapi.yaml`; migrations run on start because free instances have no pre-deploy step); Postgres on Neon (Render's free database expires after 30 days). Cross-origin calls use CORS with an explicit origin allow-list and Bearer tokens (no cookies, so no CSRF surface). `TRUST_PROXY=1` on Render for correct client IPs in rate limiting. `DEMO_TOOLS=true` in the demo deployment only.
+- **Alternative:** One host serving both (Render static + API, or Fly.io); Railway; Render Postgres.
+- **Tradeoff:** Three dashboards and a CORS setting to keep in sync; each tier is free and HTTPS by default. The free Render service sleeps when idle (~30–60 s cold start) — acceptable because the client is offline-first and retries with backoff.
+- **Not done:** a Content-Security-Policy on the Vercel side, because `connect-src` depends on the final API URL; adding `default-src 'self'; connect-src 'self' https://<api-host>` is a recommended hardening step after deploy.

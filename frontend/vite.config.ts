@@ -3,6 +3,11 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// A Vercel build without the API URL would silently point every user at localhost.
+if (process.env.VERCEL && !process.env.VITE_API_URL) {
+  throw new Error('Set VITE_API_URL (e.g. https://siteward-api.onrender.com/api) in Vercel.');
+}
+
 export default defineConfig({
   plugins: [
     react(),

@@ -1,0 +1,40 @@
+# Render Blueprint for the Siteward API (see docs/DEPLOY.md).
+# The database is external (Neon recommended): paste its URL into DATABASE_URL when Render asks.
+services:
+  - type: web
+    name: siteward-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    # Build from the repo root: the backend needs the workspace lockfile and docs/openapi.yaml.
+    # --include=dev: TypeScript and the Prisma CLI are dev dependencies but needed to build/migrate.
+    buildCommand: npm ci --include=dev && npm run build -w backend
+    # Free instances have no pre-deploy step, so migrations run on start (they are idempotent).
+    startCommand: npm run db:deploy -w backend && npm run start -w backend
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # Neon (or Render Postgres) connection string, with ?sslmode=require
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: CORS_ORIGIN
+        sync: false # e.g. https://siteward.vercel.app (comma-separate several)
+      - key: TRUST_PROXY
+        value: '1' # Render sits behind one proxy: real client IPs for rate limiting
+      - key: LOG_LEVEL
+        value: info
+      - key: DEMO_TOOLS
+        value: 'true' # enables the AC8 demo endpoint (supervisor only); set to false for real use
+      - key: FAIL_SYNC_RATE
+        value: '0'
+      - key: SEED_INSPECTOR_PASSWORD
+        sync: false
+      - key: SEED_SUPERVISOR_PASSWORD
+        sync: false
