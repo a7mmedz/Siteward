@@ -62,3 +62,35 @@ Short ADRs: context, decision, alternative considered, tradeoff. Newest decision
 - **Context:** An inspector asking for another inspector's inspection by id.
 - **Decision:** Respond `404 NOT_FOUND`, the same as a missing id, so ids of other people's work are not confirmed. Writes to someone else's inspection through `/sync` are `rejected` with code `FORBIDDEN` (the client needs to know why its change was refused).
 - **Tradeoff:** Slightly less explicit for reads; no information leak.
+
+## ADR-010 — One batch endpoint for all writes (`POST /sync`)
+
+- **Context:** The client replays an offline outbox; online and offline writes should use one code path.
+- **Decision:** All writes go through `POST /api/sync` with up to 50 ops. Ops are applied in order, each in its own transaction, and each gets its own result (`applied | duplicate | conflict | rejected`). One bad op never fails the batch; a malformed envelope fails the request with 400.
+- **Alternative:** REST `POST/PUT/DELETE /inspections/:id`, one request per change.
+- **Tradeoff:** Fewer round trips on reconnect and one well-tested write path; slightly less "RESTful" and needs the per-op result contract documented (OpenAPI + `docs/sync-protocol.md`).
+
+## ADR-011 — Idempotency via client `opId` + `ProcessedOp`
+
+- **Context:** Networks drop responses; the client must be able to resend safely (AC6).
+- **Decision:** Every op has a client UUID `opId`. In the same transaction that applies an op, the server stores `ProcessedOp { opId, userId, result: { entityId, version } }`. A known `opId` returns `duplicate` with `appliedVersion` (the version that op produced) and the *current* record. A unique-violation race between concurrent identical requests rolls back the loser, which retries and answers `duplicate`. Only *applied* ops are recorded: conflicts and rejections write nothing, so re-evaluating them on retry is harmless and returns up-to-date answers. Creates are also idempotent by the client-generated inspection id.
+- **Alternative:** An `Idempotency-Key` header per HTTP request.
+- **Tradeoff:** Per-op keys survive re-batching (a retried op can travel in a different batch); the `ProcessedOp` table grows forever (could be pruned after N days — not needed at this scale).
+
+## ADR-012 — Version-based optimistic concurrency, user-resolved conflicts
+
+- **Context:** A supervisor can edit an inspection while the inspector is offline (AC7).
+- **Decision:** `Inspection.version` starts at 1 and increments on every server write. Update/delete ops carry `baseVersion`; the write is a compare-and-set (`UPDATE … WHERE id AND version = baseVersion`). A mismatch returns `conflict` with the `serverCopy`. **No silent overwrite:** the user chooses *Keep mine* (re-send local fields with `baseVersion = serverCopy.version`) or *Keep server* (drop local change). Whole-record granularity: no field-level merge.
+- **Alternative:** Last-write-wins by timestamp; field-level/CRDT merge.
+- **Tradeoff:** Never loses data without a human decision and is simple to reason about; the user occasionally resolves a conflict that a field-level merge could have auto-merged.
+
+## ADR-013 — Business rules on writes
+
+- **Decision:** (1) Submitting requires a result for every item and a comment for every failed item. (2) Inspectors cannot change a submitted inspection (`LOCKED`); supervisors can (including setting it back to draft). (3) Deletes are soft (`deletedAt`) so incremental pulls can propagate them. (4) `inspectorId` is always the authenticated user on create; it is never taken from the payload. (5) An update payload is a full replacement of `title`, `notes`, `status`, `items`; `siteId` is fixed at creation.
+- **Tradeoff:** Full-record payloads are larger than patches but make coalescing and "keep mine" trivial.
+
+## ADR-014 — Demo failure tools
+
+- **Context:** AC8 must be demonstrable live without killing the hosted server.
+- **Decision:** `FAIL_SYNC_RATE` (0–1) randomly fails syncs; `POST /api/dev/fail-next-sync { count, mode }` (supervisor, only when `DEMO_TOOLS=true`, otherwise 404) fails the next N syncs. `mode: "before"` fails without writing; `mode: "after"` applies and then returns 500, simulating a lost response so the retry visibly returns `duplicate` (AC6). State is in memory per server instance.
+- **Tradeoff:** Must stay disabled in a real production deployment; documented in DEPLOY.md.

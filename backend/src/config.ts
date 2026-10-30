@@ -13,7 +13,7 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('7d'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
-  JSON_LIMIT: z.string().default('1mb'),
+  JSON_LIMIT: z.string().default('2mb'),
   LOGIN_RATE_LIMIT: z.coerce.number().int().positive().default(50),
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
   DEMO_TOOLS: bool,

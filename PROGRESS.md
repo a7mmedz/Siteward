@@ -6,7 +6,7 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 
 - [x] Phase 1 — Repo scaffolding
 - [x] Phase 2 — Backend core
-- [ ] Phase 3 — Sync endpoint
+- [x] Phase 3 — Sync endpoint
 - [ ] Phase 4 — Frontend foundation + local data
 - [ ] Phase 5 — Sync engine
 - [ ] Phase 6 — UI screens
@@ -31,6 +31,13 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - Auth: `POST /api/auth/login` (rate-limited), `GET /api/auth/me`, JWT middleware, role checks.
 - `GET /api/sites`, `GET /api/checklist-template`, `GET /api/inspections?updatedSince`, `GET /api/inspections/:id`, `GET /api/health`.
 - Tests: 21 Supertest tests (auth, access control, validation, incremental pull, CORS/headers) against an isolated `siteward_test` database. All pass.
+
+### Phase 3 — Sync endpoint
+- `POST /api/sync` (`backend/src/sync/service.ts`): batch ≤ 50, each op in its own transaction; `ProcessedOp` for idempotency; client-id idempotent creates; compare-and-set on `version` for conflicts; per-op `applied | duplicate | conflict | rejected`; unique-violation race handled.
+- Business rules: submit requires all results + comments on failures; inspectors locked out of submitted inspections; soft delete.
+- Demo tools: `FAIL_SYNC_RATE`, `POST /api/dev/fail-next-sync { count, mode: before|after }` (supervisor, `DEMO_TOOLS=true`).
+- OpenAPI 3.1 spec in `docs/openapi.yaml`; Swagger UI at `/api/docs`, raw spec at `/api/openapi.yaml|json`.
+- Tests: 28 new (create, update, batch order, submit, delete, duplicate opId → no extra row, concurrent replay, stale baseVersion → conflict, keep-mine path, permission/validation/lock rejections, malformed batch, demo tools, docs). Backend total 49, all pass.
 
 ## Needs human
 

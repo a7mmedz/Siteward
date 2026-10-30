@@ -1,0 +1,421 @@
+openapi: 3.1.0
+info:
+  title: Siteward API
+  version: 1.0.0
+  description: |
+    Backend for Siteward — field inspections that work without signal.
+
+    * All data routes require `Authorization: Bearer <token>` from `POST /auth/login`.
+    * Inspectors can read and write only their own inspections; supervisors can read and write all.
+    * Clients write through `POST /sync` (an offline outbox replay) and read through
+      `GET /inspections?updatedSince=` (incremental pull). See `docs/sync-protocol.md`.
+    * Every error uses one shape: `{ "error": { "code", "message", "details?" } }`.
+servers:
+  - url: /api
+    description: Same origin as this documentation
+tags:
+  - name: Auth
+  - name: Data
+  - name: Sync
+  - name: Ops
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [Ops]
+      summary: Health check (includes database reachability)
+      security: []
+      responses:
+        '200':
+          description: API and database are up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [ok, degraded] }
+                  db: { type: string, enum: [up, down] }
+                  time: { type: string, format: date-time }
+        '503':
+          description: Database unreachable
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Exchange email + password for a JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, example: inspector@siteward.test }
+                password: { type: string }
+      responses:
+        '200':
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  user: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401':
+          description: '`INVALID_CREDENTIALS`'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: '`RATE_LIMITED` — too many attempts from this IP'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: The current user
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /sites:
+    get:
+      tags: [Data]
+      summary: List sites
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sites:
+                    type: array
+                    items: { $ref: '#/components/schemas/Site' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /checklist-template:
+    get:
+      tags: [Data]
+      summary: The default checklist template used for new inspections
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  template:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      name: { type: string }
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: string }
+                            label: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /inspections:
+    get:
+      tags: [Data]
+      summary: List visible inspections (incremental pull)
+      description: |
+        Without `updatedSince`: all visible, non-deleted inspections.
+        With `updatedSince`: every visible inspection whose `updatedAt >= updatedSince`,
+        **including soft-deleted ones** (`deletedAt` set) so clients can remove them.
+        Pass the returned `serverTime` as the next `updatedSince`.
+      parameters:
+        - name: updatedSince
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inspections:
+                    type: array
+                    items: { $ref: '#/components/schemas/Inspection' }
+                  serverTime: { type: string, format: date-time }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /inspections/{id}:
+    get:
+      tags: [Data]
+      summary: One inspection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inspection: { $ref: '#/components/schemas/Inspection' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: Missing, deleted, or not visible to this user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /sync:
+    post:
+      tags: [Sync]
+      summary: Push a batch of outbox operations
+      description: |
+        Operations are applied **in order, each in its own transaction**. Each gets a result:
+
+        | status | meaning | client action |
+        |---|---|---|
+        | `applied` | written; `record` is the new server copy | drop op, store record |
+        | `duplicate` | this `opId` (or create id) was already applied; nothing written | same as applied; rebase later ops on `appliedVersion` |
+        | `conflict` | `baseVersion` ≠ server `version`; nothing written | park op, show "Keep mine / Keep server" |
+        | `rejected` | validation, permission, lock or not found; nothing written | mark record as error, drop op |
+
+        Retrying a request with the same `opId`s is safe (AC6). Only `applied` results are
+        recorded in `ProcessedOp`; conflicts and rejections are re-evaluated on retry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ops]
+              properties:
+                ops:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items: { $ref: '#/components/schemas/SyncOp' }
+      responses:
+        '200':
+          description: Per-operation results, in request order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items: { $ref: '#/components/schemas/OpResult' }
+                  serverTime: { type: string, format: date-time }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500':
+          description: Server error (or `SIMULATED_FAILURE` from demo tools). Client keeps ops queued and retries.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /dev/fail-next-sync:
+    post:
+      tags: [Ops]
+      summary: 'Demo: make the next N /sync requests fail (supervisor only, DEMO_TOOLS=true)'
+      description: |
+        `mode: before` fails without writing anything. `mode: after` applies the batch and then
+        answers 500, simulating a lost response; the client's retry then receives `duplicate`.
+        Returns 404 when `DEMO_TOOLS` is not `true`.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                count: { type: integer, minimum: 0, maximum: 20, default: 1 }
+                mode: { type: string, enum: [before, after], default: before }
+      responses:
+        '200':
+          description: Scheduled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scheduled: { type: integer }
+                  mode: { type: string }
+        '403':
+          description: Not a supervisor
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: Demo tools disabled
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: '`UNAUTHORIZED` — missing, invalid or expired token'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: '`VALIDATION_ERROR` (with `details`) or `INVALID_JSON`'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string, example: VALIDATION_ERROR }
+            message: { type: string, example: Title is required }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  path: { type: string, example: items.2.result }
+                  message: { type: string }
+
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        name: { type: string }
+        role: { type: string, enum: [inspector, supervisor] }
+
+    Site:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        address: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    ChecklistItem:
+      type: object
+      required: [id, label, result]
+      properties:
+        id: { type: string, maxLength: 64 }
+        label: { type: string, maxLength: 200 }
+        result:
+          type: [string, 'null']
+          enum: [pass, fail, na, null]
+        comment: { type: string, maxLength: 1000, default: '' }
+
+    InspectionFields:
+      type: object
+      required: [title, status, items]
+      description: |
+        When `status` is `submitted`, every item needs a `result` and every failed item needs a
+        `comment`.
+      properties:
+        title: { type: string, minLength: 1, maxLength: 120 }
+        notes: { type: string, maxLength: 5000, default: '' }
+        status: { type: string, enum: [draft, submitted] }
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { $ref: '#/components/schemas/ChecklistItem' }
+
+    Inspection:
+      allOf:
+        - $ref: '#/components/schemas/InspectionFields'
+        - type: object
+          properties:
+            id: { type: string, format: uuid, description: Generated by the client }
+            siteId: { type: string, format: uuid }
+            inspectorId: { type: string, format: uuid }
+            inspectorName: { type: string }
+            version: { type: integer, minimum: 1, description: '+1 on every server write' }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+            deletedAt: { type: [string, 'null'], format: date-time }
+
+    SyncOp:
+      type: object
+      required: [opId, type, entity, entityId, baseVersion]
+      properties:
+        opId: { type: string, format: uuid, description: Idempotency key, unique per operation }
+        type: { type: string, enum: [create, update, delete] }
+        entity: { type: string, enum: [inspection] }
+        entityId: { type: string, format: uuid }
+        baseVersion:
+          type: [integer, 'null']
+          description: Server version the edit was based on. `null` for create; required for update/delete.
+        payload:
+          description: |
+            create: `InspectionFields` + `siteId`. update: `InspectionFields` (full replacement).
+            delete: `{}`.
+          type: object
+
+    OpResult:
+      type: object
+      required: [opId, status]
+      properties:
+        opId: { type: string, format: uuid }
+        status: { type: string, enum: [applied, duplicate, conflict, rejected] }
+        record:
+          description: applied / duplicate — current server copy (null if no longer visible)
+          oneOf:
+            - $ref: '#/components/schemas/Inspection'
+            - type: 'null'
+        appliedVersion:
+          type: integer
+          description: duplicate — the version the original op produced
+        serverCopy:
+          description: conflict (always) / rejected (when the record exists)
+          $ref: '#/components/schemas/Inspection'
+        error:
+          description: rejected — code is VALIDATION_ERROR, FORBIDDEN, NOT_FOUND or LOCKED
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  path: { type: string }
+                  message: { type: string }

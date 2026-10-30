@@ -11,7 +11,13 @@ export const PASSWORD = 'correct-horse-battery';
 const PASSWORD_HASH = bcrypt.hashSync(PASSWORD, 4);
 
 export function makeApp(overrides: Partial<Config> = {}) {
-  const config = { ...loadConfig(), loginRateLimit: 10_000, ...overrides };
+  const config = {
+    ...loadConfig(),
+    loginRateLimit: 10_000,
+    demoTools: false,
+    failSyncRate: 0,
+    ...overrides,
+  };
   return createApp(config, createLogger('silent'));
 }
 

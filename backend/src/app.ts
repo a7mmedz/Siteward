@@ -10,6 +10,8 @@ import { errorHandler, notFoundHandler } from './lib/errors.js';
 import { authRouter } from './routes/auth.js';
 import { sitesRouter } from './routes/sites.js';
 import { inspectionsRouter } from './routes/inspections.js';
+import { DemoFailures, devRouter, syncRouter } from './routes/sync.js';
+import { docsRouter } from './routes/docs.js';
 
 export function createApp(config: Config, logger: Logger) {
   const app = express();
@@ -50,11 +52,15 @@ export function createApp(config: Config, logger: Logger) {
   });
 
   api.use('/auth', authRouter(config));
+  api.use(docsRouter());
 
   // Everything below requires a valid token.
+  const failures = new DemoFailures(config.failSyncRate);
   api.use(requireAuth(config.jwtSecret));
   api.use(sitesRouter());
   api.use(inspectionsRouter());
+  api.use(syncRouter(failures));
+  api.use(devRouter(config, failures));
 
   app.use('/api', api);
   app.use(notFoundHandler);
