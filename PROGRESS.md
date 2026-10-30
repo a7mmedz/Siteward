@@ -5,7 +5,7 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 ## Phases
 
 - [x] Phase 1 — Repo scaffolding
-- [ ] Phase 2 — Backend core
+- [x] Phase 2 — Backend core
 - [ ] Phase 3 — Sync endpoint
 - [ ] Phase 4 — Frontend foundation + local data
 - [ ] Phase 5 — Sync engine
@@ -24,6 +24,13 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - `.env.example` for backend and frontend.
 - Root scripts: `dev`, `build`, `test`, `test:e2e`, `lint`, `typecheck`, `db:up`, `db:migrate`, `db:seed`.
 - Verified: `npm install && npm run build` and `npm run lint` succeed.
+
+### Phase 2 — Backend core
+- Prisma schema (User, Site, Inspection, ProcessedOp, ChecklistTemplate) +  migration + idempotent seed (3 sites, 1 inspector, 1 supervisor, 9-item template; passwords from env).
+- Express 5 app: helmet, CORS allow-list from , JSON size limit, pino-http logs (auth header redacted), one error shape, Zod validation helpers.
+- Auth:  (rate-limited), , JWT middleware, role checks.
+- , , , , .
+- Tests: 21 Supertest tests (auth, access control, validation, incremental pull, CORS/headers) against an isolated  database. All pass.
 
 ## Needs human
 

@@ -39,6 +39,7 @@
     "esbuild": true,
     "prisma": true,
     "@prisma/engines": true,
-    "@prisma/client": false
+    "@prisma/client": false,
+    "@scarf/scarf": false
   }
 }
