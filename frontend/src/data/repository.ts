@@ -1,0 +1,185 @@
+import type { SitewardDb } from '../db/db';
+import type {
+  ChecklistTemplate,
+  EditableFields,
+  InspectionDto,
+  LocalInspection,
+  OutboxOp,
+  OpType,
+  Site,
+  User,
+} from '../lib/types';
+
+/**
+ * The only way the UI changes data. Every write updates the local record AND the outbox in one
+ * Dexie transaction, so a crash or reload can never leave one without the other.
+ *
+ * Coalescing rule: consecutive edits to the same record merge into the newest outbox op as long
+ * as that op has never been sent. Once an op has been sent it is frozen (it may already have been
+ * applied on the server), and later edits append a new op that the sync engine rebases on the
+ * version the earlier op produced.
+ */
+export function createRepository(db: SitewardDb, onLocalChange: () => void = () => {}) {
+  const now = () => new Date().toISOString();
+
+  function fieldsOf(r: LocalInspection): EditableFields {
+    return { title: r.title, notes: r.notes, status: r.status, items: r.items };
+  }
+
+  function payloadFor(type: OpType, r: LocalInspection): Record<string, unknown> {
+    if (type === 'delete') return {};
+    if (type === 'create') return { siteId: r.siteId, ...fieldsOf(r) };
+    return fieldsOf(r);
+  }
+
+  async function opsFor(entityId: string) {
+    return db.outbox.where('entityId').equals(entityId).sortBy('seq');
+  }
+
+  /** Record a change to `record` (already written) in the outbox. Call inside a transaction. */
+  async function enqueue(record: LocalInspection, kind: 'save' | 'delete') {
+    const ops = await opsFor(record.id);
+    const last = ops.at(-1);
+    if (last && !last.sentAt && !last.parked) {
+      const type: OpType = kind === 'delete' ? 'delete' : last.type;
+      await db.outbox.update(last.seq!, { type, payload: payloadFor(type, record) });
+      return;
+    }
+    const neverOnServer = record.version === 0;
+    const type: OpType =
+      kind === 'delete' ? 'delete' : neverOnServer && !last ? 'create' : 'update';
+    const op: OutboxOp = {
+      opId: crypto.randomUUID(),
+      type,
+      entity: 'inspection',
+      entityId: record.id,
+      baseVersion: neverOnServer ? null : record.version,
+      payload: payloadFor(type, record),
+      createdAt: now(),
+      attempts: 0,
+      lastError: null,
+      sentAt: null,
+      parked: false,
+    };
+    await db.outbox.add(op);
+  }
+
+  function fromServer(dto: InspectionDto): LocalInspection {
+    return { ...dto, syncState: 'synced', serverCopy: null, syncError: null };
+  }
+
+  return {
+    fromServer,
+    fieldsOf,
+
+    async createInspection(site: Site, user: User, template: ChecklistTemplate) {
+      const at = now();
+      const record: LocalInspection = {
+        id: crypto.randomUUID(),
+        siteId: site.id,
+        inspectorId: user.id,
+        inspectorName: user.name,
+        title: `${site.name} — ${new Date().toLocaleDateString()}`,
+        notes: '',
+        status: 'draft',
+        items: template.items.map((i) => ({ id: i.id, label: i.label, result: null, comment: '' })),
+        version: 0,
+        createdAt: at,
+        updatedAt: at,
+        deletedAt: null,
+        syncState: 'pending',
+        serverCopy: null,
+        syncError: null,
+      };
+      await db.transaction('rw', db.inspections, db.outbox, async () => {
+        await db.inspections.add(record);
+        await enqueue(record, 'save');
+      });
+      onLocalChange();
+      return record;
+    },
+
+    async saveInspection(id: string, fields: Partial<EditableFields>) {
+      const saved = await db.transaction('rw', db.inspections, db.outbox, async () => {
+        const current = await db.inspections.get(id);
+        if (!current) throw new Error('Inspection not found on this device');
+        if (current.syncState === 'conflict') {
+          throw new Error('Resolve the sync conflict before editing this inspection');
+        }
+        const record: LocalInspection = {
+          ...current,
+          ...fields,
+          updatedAt: now(),
+          syncState: 'pending',
+          syncError: null,
+        };
+        await db.inspections.put(record);
+        await enqueue(record, 'save');
+        return record;
+      });
+      onLocalChange();
+      return saved;
+    },
+
+    async deleteInspection(id: string) {
+      await db.transaction('rw', db.inspections, db.outbox, async () => {
+        const current = await db.inspections.get(id);
+        if (!current) return;
+        const ops = await opsFor(id);
+        if (current.version === 0 && ops.every((o) => !o.sentAt)) {
+          // Never reached the server: forget it entirely.
+          await db.outbox.bulkDelete(ops.map((o) => o.seq!));
+          await db.inspections.delete(id);
+          return;
+        }
+        const record: LocalInspection = {
+          ...current,
+          deletedAt: now(),
+          updatedAt: now(),
+          syncState: 'pending',
+          syncError: null,
+        };
+        await db.inspections.put(record);
+        await enqueue(record, 'delete');
+      });
+      onLocalChange();
+    },
+
+    /** Conflict → "Keep mine": re-send my fields based on the server's current version. */
+    async keepMine(id: string) {
+      await db.transaction('rw', db.inspections, db.outbox, async () => {
+        const current = await db.inspections.get(id);
+        if (!current?.serverCopy) return;
+        const ops = await opsFor(id);
+        await db.outbox.bulkDelete(ops.map((o) => o.seq!));
+        const record: LocalInspection = {
+          ...current,
+          version: current.serverCopy.version,
+          syncState: 'pending',
+          serverCopy: null,
+          syncError: null,
+          updatedAt: now(),
+        };
+        await db.inspections.put(record);
+        await enqueue(record, current.deletedAt ? 'delete' : 'save');
+      });
+      onLocalChange();
+    },
+
+    /** Conflict → "Keep server", or error → "Discard my change": restore the server copy. */
+    async keepServer(id: string) {
+      await db.transaction('rw', db.inspections, db.outbox, async () => {
+        const current = await db.inspections.get(id);
+        if (!current) return;
+        const ops = await opsFor(id);
+        await db.outbox.bulkDelete(ops.map((o) => o.seq!));
+        const server = current.serverCopy;
+        if (server && !server.deletedAt) await db.inspections.put(fromServer(server));
+        else await db.inspections.delete(id);
+      });
+      onLocalChange();
+    },
+  };
+}
+
+export type Repository = ReturnType<typeof createRepository>;

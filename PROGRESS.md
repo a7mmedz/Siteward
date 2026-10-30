@@ -7,7 +7,7 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - [x] Phase 1 — Repo scaffolding
 - [x] Phase 2 — Backend core
 - [x] Phase 3 — Sync endpoint
-- [ ] Phase 4 — Frontend foundation + local data
+- [x] Phase 4 — Frontend foundation + local data
 - [ ] Phase 5 — Sync engine
 - [ ] Phase 6 — UI screens
 - [ ] Phase 7 — PWA / offline
@@ -38,6 +38,14 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - Demo tools: `FAIL_SYNC_RATE`, `POST /api/dev/fail-next-sync { count, mode: before|after }` (supervisor, `DEMO_TOOLS=true`).
 - OpenAPI 3.1 spec in `docs/openapi.yaml`; Swagger UI at `/api/docs`, raw spec at `/api/openapi.yaml|json`.
 - Tests: 28 new (create, update, batch order, submit, delete, duplicate opId → no extra row, concurrent replay, stale baseVersion → conflict, keep-mine path, permission/validation/lock rejections, malformed batch, demo tools, docs). Backend total 49, all pass.
+
+### Phase 4 — Frontend foundation + local data
+- Vite 8 + React 19 + TypeScript, React Router 7, Tailwind 4 with the §3 tokens as semantic roles (light + dark via `prefers-color-scheme`), Inter bundled.
+- Dexie schema (`inspections`, `sites`, `outbox`, `meta`), API client with token handling and network/HTTP error kinds, client-side Zod validation mirroring the server.
+- Repository layer (`frontend/src/data/repository.ts`): every write updates record + outbox in one transaction; coalescing rules (ADR-016); keep-mine / keep-server.
+- Sync engine written (`frontend/src/sync/`); its tests land in Phase 5.
+- Layout: header with logo, always-visible sync indicator + Sync now, sign-out (warns about unsynced changes), offline banner, mobile bottom nav. Login page with validation, re-auth mode, and a guard against silently discarding another user's unsynced work.
+- Verified in Chromium against the local backend: sign in → initial pull → sites shown from IndexedDB → `Online · Synced`. Typecheck, build, lint pass.
 
 ## Needs human
 

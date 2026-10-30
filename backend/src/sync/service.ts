@@ -56,10 +56,10 @@ const reject = (
   ...(extra.serverCopy && { serverCopy: extra.serverCopy }),
 });
 
-function invalid(op: SyncOp, error: z.ZodError): OpResult {
+function invalid(op: SyncOp, error: z.ZodError, serverCopy?: InspectionDto): OpResult {
   const details = zodDetails(error);
   const message = details.length === 1 ? details[0]!.message : 'Some fields are invalid';
-  return reject(op, 'VALIDATION_ERROR', message, { details });
+  return reject(op, 'VALIDATION_ERROR', message, { details, serverCopy });
 }
 
 async function load(tx: Tx, id: string) {
@@ -109,24 +109,28 @@ async function applyCreate(tx: Tx, user: AuthUser, op: SyncOp): Promise<OpResult
 }
 
 async function applyWrite(tx: Tx, user: AuthUser, op: SyncOp): Promise<OpResult> {
-  let data: z.infer<typeof updatePayloadSchema> | undefined;
-  if (op.type === 'update') {
-    const parsed = updatePayloadSchema.safeParse(op.payload);
-    if (!parsed.success) return invalid(op, parsed.error);
-    data = parsed.data;
-  }
-  if (op.baseVersion === null) {
-    return reject(op, 'VALIDATION_ERROR', `baseVersion is required for ${op.type}`, {
-      details: [{ path: 'baseVersion', message: `baseVersion is required for ${op.type}` }],
-    });
-  }
-
   const current = await load(tx, op.entityId);
   if (!current) return reject(op, 'NOT_FOUND', 'Inspection not found');
   if (!canAccessInspection(user, current)) {
     return reject(op, 'FORBIDDEN', 'You can only change your own inspections');
   }
+  // From here on the caller may see the record, so rejections carry the server copy: the client
+  // can offer "discard my change" and restore it.
   const serverCopy = toInspectionDto(current);
+
+  let data: z.infer<typeof updatePayloadSchema> | undefined;
+  if (op.type === 'update') {
+    const parsed = updatePayloadSchema.safeParse(op.payload);
+    if (!parsed.success) return invalid(op, parsed.error, serverCopy);
+    data = parsed.data;
+  }
+  if (op.baseVersion === null) {
+    return reject(op, 'VALIDATION_ERROR', `baseVersion is required for ${op.type}`, {
+      details: [{ path: 'baseVersion', message: `baseVersion is required for ${op.type}` }],
+      serverCopy,
+    });
+  }
+
   if (current.deletedAt) {
     if (op.type === 'delete') return { opId: op.opId, status: 'applied', record: serverCopy };
     return reject(op, 'NOT_FOUND', 'This inspection was deleted on the server', { serverCopy });

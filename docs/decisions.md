@@ -94,3 +94,28 @@ Short ADRs: context, decision, alternative considered, tradeoff. Newest decision
 - **Context:** AC8 must be demonstrable live without killing the hosted server.
 - **Decision:** `FAIL_SYNC_RATE` (0–1) randomly fails syncs; `POST /api/dev/fail-next-sync { count, mode }` (supervisor, only when `DEMO_TOOLS=true`, otherwise 404) fails the next N syncs. `mode: "before"` fails without writing; `mode: "after"` applies and then returns 500, simulating a lost response so the retry visibly returns `duplicate` (AC6). State is in memory per server instance.
 - **Tradeoff:** Must stay disabled in a real production deployment; documented in DEPLOY.md.
+
+## ADR-015 — Client storage: IndexedDB (Dexie) for data, localStorage only for the token
+
+- **Context:** Inspections must be readable and writable offline and survive reloads (AC3, AC4).
+- **Decision:** IndexedDB via Dexie holds `inspections`, `sites`, `outbox`, `meta` (cached user, template, `lastPulledAt`, last sync info). Each local save writes the record **and** the outbox op in one Dexie transaction. The UI reads only IndexedDB (via `useLiveQuery`) and writes only through `data/repository.ts`; `sync/engine.ts` is the only code that calls data endpoints. The JWT and nothing else lives in localStorage.
+- **Alternative:** localStorage for everything (synchronous, ~5 MB, string-only, no transactions); Cache API for JSON responses.
+- **Tradeoff:** IndexedDB is async and transactional with much larger quota. A token in localStorage is readable by any script running on the origin (XSS risk); accepted because the app ships no third-party scripts, React escapes output, and an httpOnly cookie would not work cross-site between Vercel and Render without extra CSRF handling.
+
+## ADR-016 — Outbox coalescing and rebasing
+
+- **Context:** Autosave produces many edits per record; the server must see a consistent sequence.
+- **Decision:** A new edit merges into the record's newest outbox op **only if that op was never sent** (`sentAt` null). A sent op is frozen because it may already be applied; later edits append a new op. The engine sends at most one op per record per batch; when an op is applied (or `duplicate`), the record's remaining ops are rebased onto the version it produced (`applied.record.version` / `duplicate.appliedVersion`). Records with a parked (conflicting) op send nothing until the user resolves the conflict. A rejected op drops all of that record's queued ops and marks it `error`.
+- **Alternative:** Never coalesce (one op per keystroke-save); or coalesce blindly by opId.
+- **Tradeoff:** Small queues and no self-conflicts, at the cost of a few extra round trips when a record has a follow-up edit queued behind an in-flight op.
+
+## ADR-017 — Fonts and icons are bundled, not fetched
+
+- **Context:** PLAN.md asks for Inter from Google Fonts, but a font fetched from a third-party origin at runtime is not available offline on first launch without extra runtime caching.
+- **Decision:** Use the same Inter typeface from `@fontsource-variable/inter` (bundled and precached by the service worker). Icons are inline SVG components.
+- **Tradeoff:** Slightly larger bundle; no third-party requests, works offline, no font-loading privacy concerns.
+
+## ADR-018 — UI skill substitution
+
+- **Context:** PLAN.md suggests a `frontend-design` skill; it is not installed in this environment.
+- **Decision:** Use the installed `frontend-ui-engineering` skill (app screens, accessibility, design-system adherence) for Phases 4 and 6, and Playwright directly for end-to-end tests (the installed browser skill needs a Chrome DevTools MCP server that is not configured).

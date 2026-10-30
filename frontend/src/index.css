@@ -1,0 +1,142 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens (PLAN.md §3, "degrees of blue"). Raw palette first, then semantic roles that
+ * switch for dark mode. Components use the semantic names only (bg-app, text-ink, border-line…).
+ */
+@theme {
+  --color-navy-900: #0b1f3a;
+  --color-blue-700: #1e4fa3;
+  --color-blue-500: #3b82f6;
+  --color-blue-200: #bfd7f6;
+  --color-blue-50: #eef4fc;
+  --color-slate-600: #475569;
+
+  --color-ok: #16a34a;
+  --color-warn: #d97706;
+  --color-bad: #dc2626;
+
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+}
+
+:root {
+  --app: #eef4fc;
+  --surface: #ffffff;
+  --surface-2: #f6f9fe;
+  --ink: #0b1f3a;
+  --muted: #475569;
+  --line: #bfd7f6;
+  --primary: #1e4fa3;
+  --primary-hover: #183f84;
+  --on-primary: #ffffff;
+  --focus: #3b82f6;
+  --banner: #0b1f3a;
+  --on-banner: #ffffff;
+  /* Status: accent (dots, borders) + tint (backgrounds) + ink (text, ≥4.5:1 on the tint). */
+  --ok-tint: #dcfce7;
+  --ok-ink: #14532d;
+  --warn-tint: #fef3c7;
+  --warn-ink: #78350f;
+  --bad-tint: #fee2e2;
+  --bad-ink: #7f1d1d;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --app: #071628;
+    --surface: #0b1f3a;
+    --surface-2: #10294b;
+    --ink: #eef4fc;
+    --muted: #a9bcd6;
+    --line: #1f3d66;
+    --primary: #3b82f6;
+    --primary-hover: #5b97f8;
+    --on-primary: #ffffff;
+    --focus: #8bb8fa;
+    --banner: #1e4fa3;
+    --on-banner: #ffffff;
+    --ok-tint: #0f2e1d;
+    --ok-ink: #bbf7d0;
+    --warn-tint: #33240a;
+    --warn-ink: #fde68a;
+    --bad-tint: #3a1414;
+    --bad-ink: #fecaca;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-app: var(--app);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
+  --color-focus: var(--focus);
+  --color-banner: var(--banner);
+  --color-on-banner: var(--on-banner);
+  --color-ok-tint: var(--ok-tint);
+  --color-ok-ink: var(--ok-ink);
+  --color-warn-tint: var(--warn-tint);
+  --color-warn-ink: var(--warn-ink);
+  --color-bad-tint: var(--bad-tint);
+  --color-bad-ink: var(--bad-ink);
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-app text-ink font-sans antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+}
+
+@utility btn {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility btn-primary {
+  @apply btn bg-primary text-on-primary hover:bg-primary-hover;
+}
+
+@utility btn-secondary {
+  @apply btn border border-line bg-surface text-ink hover:bg-surface-2;
+}
+
+@utility btn-ghost {
+  @apply btn text-primary hover:bg-surface-2;
+}
+
+@utility btn-danger {
+  @apply btn border border-bad/40 bg-surface text-bad-ink hover:bg-bad-tint;
+}
+
+@utility field-label {
+  @apply mb-1 block text-sm font-medium text-ink;
+}
+
+@utility field-input {
+  @apply block min-h-11 w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink placeholder:text-muted/70 focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/40 aria-invalid:border-bad;
+}
+
+@utility field-error {
+  @apply mt-1 text-sm font-medium text-bad-ink;
+}
+
+@utility card {
+  @apply rounded-lg border border-line bg-surface;
+}
