@@ -26,11 +26,11 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 - Verified: `npm install && npm run build` and `npm run lint` succeed.
 
 ### Phase 2 — Backend core
-- Prisma schema (User, Site, Inspection, ProcessedOp, ChecklistTemplate) +  migration + idempotent seed (3 sites, 1 inspector, 1 supervisor, 9-item template; passwords from env).
-- Express 5 app: helmet, CORS allow-list from , JSON size limit, pino-http logs (auth header redacted), one error shape, Zod validation helpers.
-- Auth:  (rate-limited), , JWT middleware, role checks.
-- , , , , .
-- Tests: 21 Supertest tests (auth, access control, validation, incremental pull, CORS/headers) against an isolated  database. All pass.
+- Prisma schema (User, Site, Inspection, ProcessedOp, ChecklistTemplate) + `init` migration + idempotent seed (3 sites, 1 inspector, 1 supervisor, 9-item template; passwords from env).
+- Express 5 app: helmet, CORS allow-list from `CORS_ORIGIN`, JSON size limit, pino-http logs (auth header redacted), one error shape, Zod validation helpers.
+- Auth: `POST /api/auth/login` (rate-limited), `GET /api/auth/me`, JWT middleware, role checks.
+- `GET /api/sites`, `GET /api/checklist-template`, `GET /api/inspections?updatedSince`, `GET /api/inspections/:id`, `GET /api/health`.
+- Tests: 21 Supertest tests (auth, access control, validation, incremental pull, CORS/headers) against an isolated `siteward_test` database. All pass.
 
 ## Needs human
 
