@@ -19,7 +19,11 @@ import type {
  * applied on the server), and later edits append a new op that the sync engine rebases on the
  * version the earlier op produced.
  */
-export function createRepository(db: SitewardDb, onLocalChange: () => void = () => {}) {
+export function createRepository(
+  db: SitewardDb,
+  onLocalChange: () => void = () => {},
+  isOnline: () => boolean = () => typeof navigator === 'undefined' || navigator.onLine !== false,
+) {
   const now = () => new Date().toISOString();
 
   function fieldsOf(r: LocalInspection): EditableFields {
@@ -36,13 +40,23 @@ export function createRepository(db: SitewardDb, onLocalChange: () => void = () 
     return db.outbox.where('entityId').equals(entityId).sortBy('seq');
   }
 
-  /** Record a change to `record` (already written) in the outbox. Call inside a transaction. */
+  /**
+   * Record a change to `record` (already written) in the outbox. Call inside a transaction.
+   * Stamps the device time and whether the device was offline, for the conflict screen.
+   */
   async function enqueue(record: LocalInspection, kind: 'save' | 'delete') {
     const ops = await opsFor(record.id);
     const last = ops.at(-1);
+    const editedAt = now();
+    const offline = !isOnline();
     if (last && !last.sentAt && !last.parked) {
       const type: OpType = kind === 'delete' ? 'delete' : last.type;
-      await db.outbox.update(last.seq!, { type, payload: payloadFor(type, record) });
+      await db.outbox.update(last.seq!, {
+        type,
+        payload: payloadFor(type, record),
+        editedAt,
+        editedOffline: last.editedOffline || offline,
+      });
       return;
     }
     const neverOnServer = record.version === 0;
@@ -55,7 +69,9 @@ export function createRepository(db: SitewardDb, onLocalChange: () => void = () 
       entityId: record.id,
       baseVersion: neverOnServer ? null : record.version,
       payload: payloadFor(type, record),
-      createdAt: now(),
+      createdAt: editedAt,
+      editedAt,
+      editedOffline: offline,
       attempts: 0,
       lastError: null,
       sentAt: null,
@@ -66,6 +82,45 @@ export function createRepository(db: SitewardDb, onLocalChange: () => void = () 
 
   function fromServer(dto: InspectionDto): LocalInspection {
     return { ...dto, syncState: 'synced', serverCopy: null, syncError: null };
+  }
+
+  /**
+   * Conflict resolution that keeps local data: drop the record's queued ops (including the parked
+   * one) and queue a fresh op — new opId — based on the server's current version, all in one
+   * transaction. `fields` replaces the local fields first (Edit combined); without it the local
+   * version is re-sent as is (Keep mine).
+   */
+  async function resendOnServerVersion(
+    id: string,
+    fields?: EditableFields,
+    expectedServerVersion?: number,
+  ): Promise<'queued' | 'stale' | 'gone'> {
+    const outcome = await db.transaction('rw', db.inspections, db.outbox, async () => {
+      const current = await db.inspections.get(id);
+      if (!current?.serverCopy) return 'gone' as const;
+      if (
+        expectedServerVersion !== undefined &&
+        current.serverCopy.version !== expectedServerVersion
+      ) {
+        return 'stale' as const;
+      }
+      const ops = await opsFor(id);
+      await db.outbox.bulkDelete(ops.map((o) => o.seq!));
+      const record: LocalInspection = {
+        ...current,
+        ...fields,
+        version: current.serverCopy.version,
+        syncState: 'pending',
+        serverCopy: null,
+        syncError: null,
+        updatedAt: now(),
+      };
+      await db.inspections.put(record);
+      await enqueue(record, current.deletedAt ? 'delete' : 'save');
+      return 'queued' as const;
+    });
+    if (outcome === 'queued') onLocalChange();
+    return outcome;
   }
 
   return {
@@ -86,6 +141,7 @@ export function createRepository(db: SitewardDb, onLocalChange: () => void = () 
         version: 0,
         createdAt: at,
         updatedAt: at,
+        updatedBy: { id: user.id, name: user.name, role: user.role },
         deletedAt: null,
         syncState: 'pending',
         serverCopy: null,
@@ -147,23 +203,18 @@ export function createRepository(db: SitewardDb, onLocalChange: () => void = () 
 
     /** Conflict → "Keep mine": re-send my fields based on the server's current version. */
     async keepMine(id: string) {
-      await db.transaction('rw', db.inspections, db.outbox, async () => {
-        const current = await db.inspections.get(id);
-        if (!current?.serverCopy) return;
-        const ops = await opsFor(id);
-        await db.outbox.bulkDelete(ops.map((o) => o.seq!));
-        const record: LocalInspection = {
-          ...current,
-          version: current.serverCopy.version,
-          syncState: 'pending',
-          serverCopy: null,
-          syncError: null,
-          updatedAt: now(),
-        };
-        await db.inspections.put(record);
-        await enqueue(record, current.deletedAt ? 'delete' : 'save');
-      });
-      onLocalChange();
+      await resendOnServerVersion(id);
+    },
+
+    /**
+     * Conflict → "Edit combined": save the combined fields as a new change based on the server
+     * version the user combined against. Returns 'stale' (and changes nothing) if a newer server
+     * version arrived meanwhile, so the user sees the conflict again instead of overwriting it.
+     */
+    async saveCombined(id: string, fields: EditableFields, serverVersion: number) {
+      const current = await db.inspections.get(id);
+      if (current?.deletedAt) throw new Error('A deleted inspection cannot be combined');
+      return resendOnServerVersion(id, fields, serverVersion);
     },
 
     /** Conflict → "Keep server", or error → "Discard my change": restore the server copy. */

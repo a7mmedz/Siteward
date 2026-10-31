@@ -136,6 +136,22 @@ export function Notice({
   );
 }
 
+/**
+ * A time in the user's timezone: "10:42" today, "3 Oct, 10:42" on another day (with the year if
+ * it differs).
+ */
+export function formatEditTime(iso: string, now = new Date()) {
+  const d = new Date(iso);
+  const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  if (d.toDateString() === now.toDateString()) return time;
+  const date = d.toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    ...(d.getFullYear() !== now.getFullYear() && { year: 'numeric' }),
+  });
+  return `${date}, ${time}`;
+}
+
 export function formatDate(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
     day: 'numeric',

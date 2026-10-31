@@ -30,6 +30,12 @@ export const USER = {
   name: 'Ina',
   role: 'inspector' as const,
 };
+export const SUPERVISOR = {
+  id: '33333333-3333-4333-8333-333333333333',
+  name: 'Sara',
+  role: 'supervisor' as const,
+};
+const BY_USER = { id: USER.id, name: USER.name, role: USER.role };
 
 /**
  * An in-memory stand-in for the backend, implementing the same /sync rules (idempotent opIds,
@@ -86,6 +92,7 @@ export function createFakeServer() {
         version: 1,
         createdAt: at,
         updatedAt: at,
+        updatedBy: BY_USER,
         deletedAt: null,
       };
     } else {
@@ -97,12 +104,19 @@ export function createFakeServer() {
       }
       record =
         op.type === 'delete'
-          ? { ...current, deletedAt: tick(), version: current.version + 1, updatedAt: tick() }
+          ? {
+              ...current,
+              deletedAt: tick(),
+              version: current.version + 1,
+              updatedAt: tick(),
+              updatedBy: BY_USER,
+            }
           : {
               ...current,
               ...(op.payload as Partial<InspectionDto>),
               version: current.version + 1,
               updatedAt: tick(),
+              updatedBy: BY_USER,
             };
     }
     records.set(record.id, record);
@@ -166,7 +180,13 @@ export function createFakeServer() {
     /** A supervisor edit made directly on the server. */
     serverEdit(id: string, patch: Partial<InspectionDto>) {
       const current = records.get(id)!;
-      records.set(id, { ...current, ...patch, version: current.version + 1, updatedAt: tick() });
+      records.set(id, {
+        ...current,
+        ...patch,
+        version: current.version + 1,
+        updatedAt: tick(),
+        updatedBy: SUPERVISOR,
+      });
     },
   };
 }

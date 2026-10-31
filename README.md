@@ -42,7 +42,7 @@ deployment in [docs/DEPLOY.md](docs/DEPLOY.md) is done.
 | AC4 | Offline: user can create and edit inspections; changes survive page reloads. | ✅ | [e2e/tests/02-offline.spec.ts](e2e/tests/02-offline.spec.ts), [frontend/src/sync/engine.test.ts](frontend/src/sync/engine.test.ts) ("persistence across reloads") · [screenshot](docs/evidence/ac4-offline-edits-after-reload.png) |
 | AC5 | On reconnect, pending changes sync automatically; server data matches the client. | ✅ | [e2e/tests/02-offline.spec.ts](e2e/tests/02-offline.spec.ts) (compares IndexedDB and API field by field) · [screenshot](docs/evidence/ac5-back-online-synced.png) |
 | AC6 | Retrying the same sync request creates no duplicate records (idempotency). | ✅ | [backend/test/sync.test.ts](backend/test/sync.test.ts) (replay, concurrent replay), [frontend/src/sync/engine.test.ts](frontend/src/sync/engine.test.ts), [e2e/tests/03-idempotency.spec.ts](e2e/tests/03-idempotency.spec.ts) · [lost response](docs/evidence/ac6-lost-response.png), [replay → duplicate](docs/evidence/ac6-replay-duplicate.png) |
-| AC7 | Conflicting edits are detected and the user can resolve them (keep mine / keep server). | ✅ | [backend/test/sync.test.ts](backend/test/sync.test.ts), [frontend/src/sync/engine.test.ts](frontend/src/sync/engine.test.ts), [e2e/tests/04-conflict.spec.ts](e2e/tests/04-conflict.spec.ts) · [conflict screen](docs/evidence/ac7-conflict-screen.png), [resolved](docs/evidence/ac7-keep-mine-synced.png) |
+| AC7 | Conflicting edits are detected and the user can resolve them (keep mine / keep server / edit combined), seeing who made each version and when. | ✅ | [backend/test/sync.test.ts](backend/test/sync.test.ts), [frontend/src/sync/engine.test.ts](frontend/src/sync/engine.test.ts), [frontend/src/data/combine.test.ts](frontend/src/data/combine.test.ts), [e2e/tests/04-conflict.spec.ts](e2e/tests/04-conflict.spec.ts) · [conflict screen](docs/evidence/ac7-conflict-screen.png), [authors](docs/evidence/ac7-conflict-authors.png), [resolved](docs/evidence/ac7-keep-mine-synced.png), [edit combined](docs/evidence/ac7-edit-combined-form.png), [combined synced](docs/evidence/ac7-edit-combined-synced.png) |
 | AC8 | Failed sync (server down / 500) keeps changes queued, shows status, and recovers on retry. | ✅ | [frontend/src/sync/engine.test.ts](frontend/src/sync/engine.test.ts) (backoff), [backend/test/sync.test.ts](backend/test/sync.test.ts) (demo tools), [e2e/tests/05-failure.spec.ts](e2e/tests/05-failure.spec.ts) (500s and unreachable server) · [queued](docs/evidence/ac8-sync-failed-queued.png), [recovered](docs/evidence/ac8-recovered.png) |
 | AC9 | Invalid input is rejected with clear messages on both client and server. | ✅ | [backend/test/sync.test.ts](backend/test/sync.test.ts), [backend/test/auth.test.ts](backend/test/auth.test.ts), [frontend/src/data/validation.test.ts](frontend/src/data/validation.test.ts), [e2e/tests/01-online.spec.ts](e2e/tests/01-online.spec.ts) · [login](docs/evidence/ac9-login-errors.png), [submit](docs/evidence/ac9-submit-validation.png) |
 | AC10 | Frontend and backend are hosted separately over HTTPS; API docs are available. | ⚠️ prepared, deploy pending | [render.yaml](render.yaml), [frontend/vercel.json](frontend/vercel.json), [docs/DEPLOY.md](docs/DEPLOY.md), [docs/openapi.yaml](docs/openapi.yaml), [e2e/tests/06-api-docs.spec.ts](e2e/tests/06-api-docs.spec.ts) · [Swagger UI](docs/evidence/ac10-api-docs.png) |
@@ -122,7 +122,7 @@ Sign in, wait for `Online · Synced`, then switch Chrome DevTools → Network to
   3. Go offline, reload, edit, create, reload again (AC3, AC4).
   4. Reconnect: automatic sync; the server matches the device (AC5).
   5. "Lose next response" from the debug panel (`?debug=1`): retry returns `duplicate`, no extra row (AC6).
-  6. Supervisor edits while the inspector is offline → conflict → Keep mine / Keep server (AC7).
+  6. Supervisor edits while the inspector is offline → conflict → Keep mine / Keep server / Edit combined (AC7).
   7. "Fail next sync": changes stay queued, `Sync failed · Retry`, recovery (AC8).
   8. Show both HTTPS URLs and Swagger UI (AC10).
 
@@ -183,7 +183,7 @@ test); the end-to-end tests run against the production build with a real service
 - Storage is limited by the browser's quota; clearing site data or signing out loses unsynced changes
   (sign-out warns first).
 - No real-time push: other users' changes appear on the next pull (≤ 30 s, or Sync now).
-- Conflicts are resolved per whole inspection, not per field.
+- Conflicts are resolved per whole inspection; Edit combined lets the user merge differing fields by hand, with no automatic merge.
 - The JWT is stored in localStorage (readable by scripts on the origin; see ADR-015).
 - The checklist template is fixed per inspection at creation; there is no template editor.
 - Free hosting: the API sleeps when idle (cold start), and demo failure tools are enabled in the demo

@@ -24,7 +24,9 @@ model User {
   passwordHash String
   role         Role
   createdAt    DateTime     @default(now())
-  inspections  Inspection[]
+  inspections  Inspection[] @relation("InspectionInspector")
+  /// Inspections whose last write was made by this user.
+  lastUpdated  Inspection[] @relation("InspectionUpdatedBy")
 }
 
 model Site {
@@ -48,11 +50,15 @@ model Inspection {
   /// Starts at 1, +1 on every server write. Used for optimistic concurrency.
   version     Int              @default(1)
   createdAt   DateTime         @default(now())
+  /// Server time of the last successful write. Set by the server, never taken from the client.
   updatedAt   DateTime         @updatedAt
+  /// Who made the last successful write (the inspector or a supervisor). Set by the server.
+  updatedById String           @db.Uuid
   deletedAt   DateTime?
 
   site      Site @relation(fields: [siteId], references: [id])
-  inspector User @relation(fields: [inspectorId], references: [id])
+  inspector User @relation("InspectionInspector", fields: [inspectorId], references: [id])
+  updatedBy User @relation("InspectionUpdatedBy", fields: [updatedById], references: [id])
 
   @@index([inspectorId, updatedAt])
   @@index([updatedAt])

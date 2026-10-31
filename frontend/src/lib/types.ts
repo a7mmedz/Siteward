@@ -4,6 +4,8 @@ export type InspectionStatus = 'draft' | 'submitted';
 
 export type User = { id: string; email: string; name: string; role: Role };
 
+export type UserRef = Pick<User, 'id' | 'name' | 'role'>;
+
 export type Site = { id: string; name: string; address: string; createdAt: string };
 
 export type ChecklistItem = {
@@ -31,7 +33,10 @@ export type InspectionDto = {
   items: ChecklistItem[];
   version: number;
   createdAt: string;
+  /** Server time of the last write (on a local copy with pending changes: the device time). */
   updatedAt: string;
+  /** Who made the last server write. Informational only; versions decide conflicts. */
+  updatedBy: UserRef;
   deletedAt: string | null;
 };
 
@@ -73,6 +78,14 @@ export type OutboxOp = {
   baseVersion: number | null;
   payload: Record<string, unknown>;
   createdAt: string;
+  /**
+   * Device time of the latest local edit this op carries (moves forward when edits coalesce).
+   * Shown on the conflict screen only; the author is the signed-in user (the outbox is cleared
+   * when a different user signs in).
+   */
+  editedAt: string;
+  /** True if any edit in this op was made while the device was offline. */
+  editedOffline: boolean;
   attempts: number;
   lastError: string | null;
   /** Set the first time the op is sent. A sent op is never modified again (it may have landed). */

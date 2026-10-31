@@ -27,6 +27,8 @@ Server: [`backend/src/sync/service.ts`](../backend/src/sync/service.ts). Client:
   baseVersion: number | null, // server version this change is based on (null for create)
   payload: {...},             // create: siteId + fields; update: full fields; delete: {}
   createdAt, attempts, lastError,
+  editedAt: string,           // device time of the latest edit in this op (conflict screen only)
+  editedOffline: boolean,     // any edit in this op was made offline (conflict screen only)
   sentAt: string | null,      // first send time — a sent op is frozen
   parked: boolean,            // true after a conflict, until the user resolves it
 }
@@ -155,8 +157,22 @@ sequenceDiagram
     S-->>I: applied v3
   else Keep server
     I->>I: drop op, record = serverCopy v2 (synced)
+  else Edit combined
+    I->>I: user edits the differing fields (text: both prefilled, choices: must pick one)
+    I->>I: one transaction: drop parked op, new op (new opId) base=2 (combined fields)
+    I->>S: POST /sync [op base=2]
+    S-->>I: applied v3 (or conflict again if the server moved on → choose again)
   end
 ```
+
+The conflict screen shows who made each version and when: *Your version* from the parked op's
+`editedAt`/`editedOffline` (device time, labelled as such) and the signed-in user; *Server version*
+from `serverCopy.updatedBy` and `serverCopy.updatedAt` (set by the server on every successful
+write, never taken from the client). These are information only; the conflict itself is decided
+by `version`. **Edit combined** is checked against the server version it was opened on: if a
+newer server copy arrives first (pull) the screen goes back to the comparison with the newest
+version, and if the server moves on after saving, `/sync` answers `conflict` again. Nothing is
+ever overwritten silently.
 
 ### Edit while an op is in flight (rebase)
 
@@ -182,4 +198,5 @@ sequenceDiagram
 - Storage is bounded by the **browser quota**; very old devices or private browsing may evict data.
 - **Clearing site data** (or signing out) deletes unsynced changes. Sign-out warns first.
 - **No real-time push**: other users' changes arrive on the next pull (≤ 30 s while online, or Sync now).
-- Conflicts are resolved per **whole record** (no field-level merge).
+- Conflicts are resolved per **whole record**: keep mine, keep server, or a combined version the
+  user edits by hand. There is no automatic field-level merge.

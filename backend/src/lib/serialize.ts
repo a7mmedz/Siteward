@@ -1,5 +1,7 @@
-import type { Inspection, Site } from '@prisma/client';
+import type { Inspection, Role, Site } from '@prisma/client';
 import type { ChecklistItem } from './validation.js';
+
+export type UserRefDto = { id: string; name: string; role: Role };
 
 export type InspectionDto = {
   id: string;
@@ -12,13 +14,22 @@ export type InspectionDto = {
   items: ChecklistItem[];
   version: number;
   createdAt: string;
+  /** Server time of the last write. */
   updatedAt: string;
+  /** Who made the last write. */
+  updatedBy: UserRefDto;
   deletedAt: string | null;
 };
 
-export type InspectionWithInspector = Inspection & { inspector: { name: string } };
+export type InspectionWithInspector = Inspection & {
+  inspector: { name: string };
+  updatedBy: UserRefDto;
+};
 
-export const withInspector = { inspector: { select: { name: true } } } as const;
+export const withInspector = {
+  inspector: { select: { name: true } },
+  updatedBy: { select: { id: true, name: true, role: true } },
+} as const;
 
 export function toInspectionDto(row: InspectionWithInspector): InspectionDto {
   return {
@@ -33,6 +44,7 @@ export function toInspectionDto(row: InspectionWithInspector): InspectionDto {
     version: row.version,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    updatedBy: { id: row.updatedBy.id, name: row.updatedBy.name, role: row.updatedBy.role },
     deletedAt: row.deletedAt?.toISOString() ?? null,
   };
 }

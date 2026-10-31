@@ -198,15 +198,19 @@ paths:
       description: |
         Operations are applied **in order, each in its own transaction**. Each gets a result:
 
-        | status | meaning | client action |
-        |---|---|---|
-        | `applied` | written; `record` is the new server copy | drop op, store record |
-        | `duplicate` | this `opId` (or create id) was already applied; nothing written | same as applied; rebase later ops on `appliedVersion` |
-        | `conflict` | `baseVersion` ≠ server `version`; nothing written | park op, show "Keep mine / Keep server" |
-        | `rejected` | validation, permission, lock or not found; nothing written | mark record as error, drop op |
+        | status | fields | meaning | client action |
+        |---|---|---|---|
+        | `applied` | `record` | written; `record` is the new server copy, with `updatedBy` = caller and `updatedAt` = server time | drop op, store record |
+        | `duplicate` | `appliedVersion`, `record` | this `opId` (or create id) was already applied; nothing written | same as applied; rebase later ops on `appliedVersion` |
+        | `conflict` | `serverCopy` | `baseVersion` ≠ server `version`; nothing written. `serverCopy.updatedBy` / `serverCopy.updatedAt` say who made the server version and when | park op, show "Keep mine / Keep server / Edit combined" |
+        | `rejected` | `error`, `serverCopy?` | validation, permission, lock or not found; nothing written | mark record as error, drop op |
 
         Retrying a request with the same `opId`s is safe (AC6). Only `applied` results are
         recorded in `ProcessedOp`; conflicts and rejections are re-evaluated on retry.
+
+        `updatedAt` and `updatedBy` are always set by the server on a successful write; any
+        such field in `payload` is ignored. They are informational: conflicts are detected by
+        `version` only.
       requestBody:
         required: true
         content:
@@ -369,8 +373,25 @@ components:
             inspectorName: { type: string }
             version: { type: integer, minimum: 1, description: '+1 on every server write' }
             createdAt: { type: string, format: date-time }
-            updatedAt: { type: string, format: date-time }
+            updatedAt:
+              type: string
+              format: date-time
+              description: |
+                Server time of the last successful write (create, update or delete). Set by the
+                server; a value sent by the client is ignored. Informational only: conflicts are
+                decided by `version`.
+            updatedBy:
+              $ref: '#/components/schemas/UserRef'
+              description: Who made the last successful write. Set by the server.
             deletedAt: { type: [string, 'null'], format: date-time }
+
+    UserRef:
+      type: object
+      required: [id, name, role]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, example: Sara Haddad }
+        role: { type: string, enum: [inspector, supervisor] }
 
     SyncOp:
       type: object
@@ -404,7 +425,10 @@ components:
           type: integer
           description: duplicate — the version the original op produced
         serverCopy:
-          description: conflict (always) / rejected (when the record exists)
+          description: |
+            conflict (always) / rejected (when the record exists) — the current server version,
+            including `updatedBy` and `updatedAt`, so the client can show who made it and when
+            without another request.
           $ref: '#/components/schemas/Inspection'
         error:
           description: rejected — code is VALIDATION_ERROR, FORBIDDEN, NOT_FOUND or LOCKED

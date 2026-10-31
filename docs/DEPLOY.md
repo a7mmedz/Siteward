@@ -105,4 +105,5 @@ Browser ──HTTPS──▶ Vercel (static PWA, frontend/)        Render (Expre
 ## Rolling back
 
 Render and Vercel both keep previous deploys: **Rollback** in either dashboard. Migrations are
-additive; there is only the `init` migration today.
+additive (`init`, then `inspection_updated_by`, which adds a column and backfills it), so rolling
+back the app does not require rolling back the database.

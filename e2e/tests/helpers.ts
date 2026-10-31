@@ -86,6 +86,8 @@ type ServerInspection = {
   version: number;
   items: { id: string; label: string; result: string | null; comment: string }[];
   inspectorName: string;
+  updatedAt: string;
+  updatedBy: { id: string; name: string; role: string };
 };
 
 export async function serverInspection(request: APIRequestContext, token: string, id: string) {
@@ -107,10 +109,11 @@ export async function serverInspections(request: APIRequestContext, token: strin
 export async function supervisorEdit(
   request: APIRequestContext,
   id: string,
-  patch: Partial<ServerInspection>,
+  change: Partial<ServerInspection> | ((current: ServerInspection) => Partial<ServerInspection>),
 ) {
   const token = await apiToken(request, 'supervisor');
   const current = await serverInspection(request, token, id);
+  const patch = typeof change === 'function' ? change(current) : change;
   const res = await request.post(`${API_URL}/sync`, {
     headers: { Authorization: `Bearer ${token}` },
     data: {

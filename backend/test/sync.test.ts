@@ -227,6 +227,117 @@ describe('POST /api/sync — conflicts (AC7)', () => {
   });
 });
 
+describe('POST /api/sync — who changed it and when', () => {
+  const recent = (iso: string, before: number) => {
+    const t = Date.parse(iso);
+    expect(t).toBeGreaterThanOrEqual(before);
+    expect(t).toBeLessThanOrEqual(Date.now());
+  };
+
+  it('a create sets updatedBy to the caller and updatedAt to server time', async () => {
+    const f = await fixture();
+    const before = Date.now();
+    const op = createOp(f.site.id);
+    const res = await sync(f, f.inspectorToken, [op]);
+    const record = res.body.results[0].record;
+    expect(record.updatedBy).toEqual({
+      id: f.inspector.id,
+      name: 'Ina Inspector',
+      role: 'inspector',
+    });
+    recent(record.updatedAt, before);
+    const row = await prisma.inspection.findUniqueOrThrow({ where: { id: op.entityId } });
+    expect(row.updatedById).toBe(f.inspector.id);
+  });
+
+  it("an update records the writer, even on someone else's inspection", async () => {
+    const f = await fixture();
+    const id = await created(f);
+    const before = Date.now();
+    const res = await sync(f, f.supervisorToken, [updateOp(id, 1, { notes: 'Reviewed' })]);
+    const record = res.body.results[0].record;
+    expect(record).toMatchObject({
+      inspectorId: f.inspector.id,
+      updatedBy: { id: f.supervisor.id, name: 'Sue Supervisor', role: 'supervisor' },
+    });
+    recent(record.updatedAt, before);
+  });
+
+  it('a delete records the writer too', async () => {
+    const f = await fixture();
+    const id = await created(f, f.inspectorToken);
+    await sync(f, f.supervisorToken, [updateOp(id, 1)]);
+    const res = await sync(f, f.inspectorToken, [
+      { opId: randomUUID(), type: 'delete', entity: 'inspection', entityId: id, baseVersion: 2 },
+    ]);
+    expect(res.body.results[0].record.updatedBy.id).toBe(f.inspector.id);
+  });
+
+  it('the conflict result carries the server version author and time', async () => {
+    const f = await fixture();
+    const id = await created(f);
+    const sup = await sync(f, f.supervisorToken, [updateOp(id, 1, { notes: 'Supervisor note' })]);
+    const res = await sync(f, f.inspectorToken, [updateOp(id, 1, { notes: 'Inspector note' })]);
+    expect(res.body.results[0]).toMatchObject({
+      status: 'conflict',
+      serverCopy: {
+        version: 2,
+        updatedBy: { id: f.supervisor.id, name: 'Sue Supervisor', role: 'supervisor' },
+        updatedAt: sup.body.results[0].record.updatedAt,
+      },
+    });
+  });
+
+  it('ignores a client-sent updatedAt and author', async () => {
+    const f = await fixture();
+    const before = Date.now();
+    const forged = {
+      updatedAt: '2001-01-01T00:00:00.000Z',
+      updatedById: f.supervisor.id,
+      updatedBy: { id: f.supervisor.id, name: 'Sue Supervisor', role: 'supervisor' },
+    };
+    const c = createOp(f.site.id, randomUUID(), forged);
+    const created1 = await sync(f, f.inspectorToken, [c]);
+    expect(created1.body.results[0].record.updatedBy.id).toBe(f.inspector.id);
+    recent(created1.body.results[0].record.updatedAt, before);
+
+    const res = await sync(f, f.inspectorToken, [updateOp(c.entityId, 1, forged)]);
+    const record = res.body.results[0].record;
+    expect(record.updatedBy.id).toBe(f.inspector.id);
+    recent(record.updatedAt, before);
+    const row = await prisma.inspection.findUniqueOrThrow({ where: { id: c.entityId } });
+    expect(row.updatedById).toBe(f.inspector.id);
+    expect(row.updatedAt.getTime()).toBeGreaterThanOrEqual(before);
+  });
+
+  it('a replayed op stays a duplicate and does not move updatedAt', async () => {
+    const f = await fixture();
+    const id = await created(f);
+    const op = updateOp(id, 1, { notes: 'once' });
+    const first = await sync(f, f.inspectorToken, [op]);
+    const replay = await sync(f, f.inspectorToken, [op]);
+    expect(replay.body.results[0]).toMatchObject({ status: 'duplicate', appliedVersion: 2 });
+    expect(replay.body.results[0].record.updatedAt).toBe(first.body.results[0].record.updatedAt);
+  });
+
+  it('inspection reads include updatedBy and updatedAt', async () => {
+    const f = await fixture();
+    const id = await created(f);
+    await sync(f, f.supervisorToken, [updateOp(id, 1, { notes: 'Reviewed' })]);
+    const one = await request(f.app)
+      .get(`/api/inspections/${id}`)
+      .set('Authorization', `Bearer ${f.inspectorToken}`);
+    expect(one.body.inspection).toMatchObject({
+      updatedBy: { id: f.supervisor.id, name: 'Sue Supervisor', role: 'supervisor' },
+      updatedAt: expect.any(String),
+    });
+    const list = await request(f.app)
+      .get('/api/inspections')
+      .set('Authorization', `Bearer ${f.inspectorToken}`);
+    expect(list.body.inspections[0].updatedBy.role).toBe('supervisor');
+  });
+});
+
 describe('POST /api/sync — rejections (AC1, AC9)', () => {
   it("rejects an inspector's write to someone else's inspection", async () => {
     const f = await fixture();

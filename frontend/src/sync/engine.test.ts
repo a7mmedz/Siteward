@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SitewardDb } from '../db/db';
 import { createApi } from '../lib/api';
 import { createRepository } from '../data/repository';
-import { createFakeServer, SITE, TEMPLATE, USER } from '../test/fakeServer';
+import { createFakeServer, SITE, SUPERVISOR, TEMPLATE, USER } from '../test/fakeServer';
 import { SyncEngine, backoffMs } from './engine';
 import { describeSync, type EngineStatus } from './status';
 
@@ -14,8 +14,8 @@ function setup(opts: { dbName?: string; server?: ReturnType<typeof createFakeSer
   const db = new SitewardDb(opts.dbName ?? `test-${++counter}-${Math.random()}`);
   opened.push(db);
   const api = createApi(server.fetch, 'http://api.test/api');
-  const repo = createRepository(db);
   let online = true;
+  const repo = createRepository(db, undefined, () => online);
   let now = Date.parse('2026-06-01T10:00:00.000Z');
   const onAuthRequired = vi.fn();
   const engine = new SyncEngine({
@@ -60,6 +60,23 @@ describe('push: pending → applied', () => {
     const synced = (await t.db.inspections.get(local.id))!;
     expect(synced).toMatchObject({ syncState: 'synced', version: 1, title: local.title });
     expect(t.server.records.get(local.id)).toMatchObject({ title: local.title, version: 1 });
+  });
+
+  it('stamps the device edit time and whether the edit was made offline', async () => {
+    const t = setup();
+    const local = await t.newInspection();
+    await t.engine.syncNow();
+    t.setOnline(false);
+    await t.repo.saveInspection(local.id, { notes: 'offline' });
+    const [first] = await t.db.outbox.toArray();
+    expect(first).toMatchObject({ editedOffline: true });
+    t.setOnline(true);
+    await new Promise((r) => setTimeout(r, 5));
+    await t.repo.saveInspection(local.id, { notes: 'online again' });
+    const [merged] = await t.db.outbox.toArray();
+    expect(merged!.editedOffline).toBe(true); // one of the coalesced edits was offline
+    expect(merged!.editedAt > first!.editedAt).toBe(true);
+    expect(merged!.createdAt).toBe(first!.createdAt);
   });
 
   it('coalesces unsent edits into one op', async () => {
@@ -212,6 +229,65 @@ describe('conflicts', () => {
     await t.engine.syncNow();
     expect(t.server.records.get(id)).toMatchObject({ notes: 'inspector', version: 3 });
     expect(await t.db.inspections.get(id)).toMatchObject({ syncState: 'synced', version: 3 });
+  });
+
+  it('the server copy carries who changed it; the parked op keeps my device edit time', async () => {
+    const { t, id } = await conflicted();
+    const record = (await t.db.inspections.get(id))!;
+    expect(record.serverCopy!.updatedBy).toEqual(SUPERVISOR);
+    const [op] = await t.db.outbox.toArray();
+    expect(op!.editedAt).toEqual(expect.any(String));
+    expect(op!.editedOffline).toBe(false);
+  });
+
+  it('edit combined: one new op (new opId) on the server version replaces the parked one', async () => {
+    const { t, id } = await conflicted();
+    const [parked] = await t.db.outbox.toArray();
+    const current = (await t.db.inspections.get(id))!;
+    const fields = { ...t.repo.fieldsOf(current), notes: 'inspector + supervisor' };
+
+    expect(await t.repo.saveCombined(id, fields, 2)).toBe('queued');
+    const ops = await t.db.outbox.toArray();
+    expect(ops).toHaveLength(1);
+    expect(ops[0]).toMatchObject({
+      type: 'update',
+      baseVersion: 2,
+      parked: false,
+      sentAt: null,
+      payload: { notes: 'inspector + supervisor' },
+    });
+    expect(ops[0]!.opId).not.toBe(parked!.opId);
+    expect(await t.db.inspections.get(id)).toMatchObject({
+      syncState: 'pending',
+      serverCopy: null,
+      notes: 'inspector + supervisor',
+    });
+
+    await t.engine.syncNow();
+    expect(t.server.records.get(id)).toMatchObject({ notes: 'inspector + supervisor', version: 3 });
+    expect(await t.db.inspections.get(id)).toMatchObject({ syncState: 'synced', version: 3 });
+    expect(await t.db.outbox.count()).toBe(0);
+  });
+
+  it('edit combined against an outdated server version changes nothing', async () => {
+    const { t, id } = await conflicted();
+    const before = await t.db.outbox.toArray();
+    const current = (await t.db.inspections.get(id))!;
+    expect(await t.repo.saveCombined(id, t.repo.fieldsOf(current), 1)).toBe('stale');
+    expect(await t.db.outbox.toArray()).toEqual(before);
+    expect((await t.db.inspections.get(id))!.syncState).toBe('conflict');
+  });
+
+  it('edit combined that meets yet another server edit becomes a conflict again', async () => {
+    const { t, id } = await conflicted();
+    const current = (await t.db.inspections.get(id))!;
+    await t.repo.saveCombined(id, { ...t.repo.fieldsOf(current), notes: 'combined' }, 2);
+    t.server.serverEdit(id, { notes: 'supervisor again' }); // v3 while the combined op waits
+    await t.engine.syncNow();
+    const record = (await t.db.inspections.get(id))!;
+    expect(record).toMatchObject({ syncState: 'conflict', notes: 'combined' });
+    expect(record.serverCopy).toMatchObject({ version: 3, notes: 'supervisor again' });
+    expect(t.server.records.get(id)!.notes).toBe('supervisor again');
   });
 
   it('keep server: drops my change and restores the server copy', async () => {

@@ -47,7 +47,7 @@ flowchart LR
 | Component | Where | Responsibility |
 |---|---|---|
 | Pages & components | `frontend/src/pages`, `frontend/src/components` | Render from IndexedDB via `useLiveQuery`; never call data endpoints. |
-| Repository | `frontend/src/data/repository.ts` | The only writer: each change updates the record **and** appends/coalesces an outbox op in one Dexie transaction; conflict resolution (keep mine / keep server). |
+| Repository | `frontend/src/data/repository.ts` | The only writer: each change updates the record **and** appends/coalesces an outbox op in one Dexie transaction; conflict resolution (keep mine / keep server / edit combined). |
 | Validation | `frontend/src/data/validation.ts`, `backend/src/lib/validation.ts` | Same Zod rules and messages on both sides (ADR-008). |
 | Sync engine | `frontend/src/sync/engine.ts` | Push outbox → handle per-op results → pull changes. Lock, triggers, backoff, 401 handling, debug replay. |
 | Status | `frontend/src/sync/status.ts`, `components/SyncIndicator.tsx` | Engine state + live counts → header label (`Online · Synced`, `Offline · 3 pending`, …). |
@@ -151,7 +151,10 @@ A supervisor edits inspection v1 → v2 while the inspector, offline, edits base
 the inspector's op carries `baseVersion: 1`; the server's compare-and-set fails and it answers
 `conflict` with `serverCopy` v2. Nothing is overwritten. The record turns red (`1 conflict`); the
 conflict screen shows both versions side by side. **Keep mine** deletes the parked op and enqueues a
-new op with `baseVersion: 2` (→ v3). **Keep server** deletes the op and stores v2 locally. Details:
+new op with `baseVersion: 2` (→ v3). **Keep server** deletes the op and stores v2 locally. **Edit
+combined** lets the user edit the differing fields (free text prefilled with both values, choices
+picked by hand), then does what Keep mine does with the combined fields. Each side is labelled with
+who made it and when (`updatedBy`/`updatedAt` from the server, device `editedAt` locally). Details:
 [sync-protocol.md](sync-protocol.md).
 
 ## Security notes

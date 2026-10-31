@@ -74,6 +74,22 @@ scenarios run automatically in `npm run test:e2e`; screenshots from that run are
    Nothing was overwritten.
 4. Tap **Keep mine** → `Synced`; B → Sync now: the inspector's note is on the server (new version).
    (Repeat with **Keep server** to show the other path.)
+5. Repeat steps 1–3 to get a new conflict. Above the comparison, point out who made each version
+   and when: *Your version*: "Edited by you · on this device · 14:01 (device time) · offline", and
+   *Server version*: "Edited by Sam Supervisor (Supervisor) · 14:01". Device time is labelled
+   because phone clocks can be wrong; these times are only information. Conflicts are still
+   decided by version numbers, never by these times.
+   ([screenshot](evidence/ac7-conflict-authors.png))
+6. Tap **Edit combined**. Only the differing field (Notes) is shown, prefilled with both notes:
+   the inspector's first, a blank line, then the supervisor's
+   ([screenshot](evidence/ac7-edit-combined-form.png)). **Cancel** returns to the comparison with
+   nothing changed. Tap **Edit combined** again, edit the text down to one note, and tap
+   **Save combined** → header `Synced` ([screenshot](evidence/ac7-edit-combined-synced.png)).
+   B → Sync now: the combined note is on the server, one version above the supervisor's.
+7. Optional, choice fields: make a conflict where A marks an item **Pass** offline and B marks it
+   **Fail** with a comment. In **Edit combined** the result is not merged: both values are shown
+   and **Save combined** is blocked with "Choose a result for …" until one is picked
+   ([screenshot](evidence/ac7-edit-combined-choice-required.png)).
 
 ## 7. Failed sync and recovery (AC8)
 

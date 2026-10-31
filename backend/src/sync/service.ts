@@ -102,6 +102,7 @@ async function applyCreate(tx: Tx, user: AuthUser, op: SyncOp): Promise<OpResult
       status: data.status,
       items: data.items,
       version: 1,
+      updatedById: user.id,
     },
     include: withInspector,
   });
@@ -145,6 +146,8 @@ async function applyWrite(tx: Tx, user: AuthUser, op: SyncOp): Promise<OpResult>
   }
 
   // Compare-and-set on version: a concurrent writer that got there first makes this a conflict.
+  // Only known fields are copied from the payload; updatedAt (server clock) and updatedById come
+  // from the server, so a client-sent `updatedAt` or author is ignored.
   const { count } = await tx.inspection.updateMany({
     where: { id: op.entityId, version: op.baseVersion },
     data: {
@@ -152,6 +155,8 @@ async function applyWrite(tx: Tx, user: AuthUser, op: SyncOp): Promise<OpResult>
         ? { title: data.title, notes: data.notes, status: data.status, items: data.items }
         : { deletedAt: new Date() }),
       version: { increment: 1 },
+      updatedAt: new Date(),
+      updatedById: user.id,
     },
   });
   const row = (await load(tx, op.entityId))!;

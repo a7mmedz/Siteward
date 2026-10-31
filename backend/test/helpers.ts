@@ -56,7 +56,15 @@ export const ITEMS = [
 
 export async function insertInspection(siteId: string, inspectorId: string, title = 'Inspection') {
   return prisma.inspection.create({
-    data: { id: randomUUID(), siteId, inspectorId, title, status: 'draft', items: ITEMS },
+    data: {
+      id: randomUUID(),
+      siteId,
+      inspectorId,
+      updatedById: inspectorId,
+      title,
+      status: 'draft',
+      items: ITEMS,
+    },
   });
 }
 

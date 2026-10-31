@@ -1,17 +1,20 @@
 Siteward end-to-end results
-Run: 2026-10-30T18:22:55.035Z
+Run: 2026-10-31T10:03:27.598Z
 Command: npm run test:e2e (Playwright, Pixel 7 profile / Chromium, production build with service worker)
 
-PASS  Scenario 1 — online workflow (AC1, AC2, AC9) › rejects bad sign-in input with clear messages (AC9) (504 ms)
-PASS  Scenario 1 — online workflow (AC1, AC2, AC9) › inspector creates, edits and submits; the server stores it (AC2, AC9) (4378 ms)
-PASS  Scenario 1 — online workflow (AC1, AC2, AC9) › inspectors see only their own inspections; supervisors see all (AC1) (2458 ms)
-PASS  Scenarios 2 & 3 — offline, reload, reconnect (AC3, AC4, AC5) › works offline across reloads, then syncs and matches the server (4929 ms)
-PASS  Scenarios 2 & 3 — offline, reload, reconnect (AC3, AC4, AC5) › opens offline straight onto a deep link after the first visit (AC3) (514 ms)
-PASS  Scenario 4 — replaying the same sync creates no duplicates (AC6) › a lost response is retried with the same opId and answered as duplicate (4408 ms)
-PASS  Scenario 5 — conflicting edits are detected and resolved (AC7) › keep mine (4845 ms)
-PASS  Scenario 5 — conflicting edits are detected and resolved (AC7) › keep server (3377 ms)
-PASS  Scenario 6 — failed sync keeps changes queued and recovers (AC8) › server errors (500): queued, visible, recovers on retry (7505 ms)
-PASS  Scenario 6 — failed sync keeps changes queued and recovers (AC8) › server unreachable: queued, then recovers when it comes back (3978 ms)
-PASS  Swagger UI renders the API docs (AC10) (552 ms)
+PASS  Scenario 1 — online workflow (AC1, AC2, AC9) › rejects bad sign-in input with clear messages (AC9) (561 ms)
+PASS  Scenario 1 — online workflow (AC1, AC2, AC9) › inspector creates, edits and submits; the server stores it (AC2, AC9) (5064 ms)
+PASS  Scenario 1 — online workflow (AC1, AC2, AC9) › inspectors see only their own inspections; supervisors see all (AC1) (2665 ms)
+PASS  Scenarios 2 & 3 — offline, reload, reconnect (AC3, AC4, AC5) › works offline across reloads, then syncs and matches the server (5128 ms)
+PASS  Scenarios 2 & 3 — offline, reload, reconnect (AC3, AC4, AC5) › opens offline straight onto a deep link after the first visit (AC3) (600 ms)
+PASS  Scenario 4 — replaying the same sync creates no duplicates (AC6) › a lost response is retried with the same opId and answered as duplicate (4567 ms)
+PASS  Scenario 5 — conflicting edits are detected and resolved (AC7) › keep mine (3758 ms)
+PASS  Scenario 5 — conflicting edits are detected and resolved (AC7) › keep server (3444 ms)
+PASS  Scenario 5b — who made each version, and Edit combined (AC7) › the conflict screen shows both authors and times (3527 ms)
+PASS  Scenario 5b — who made each version, and Edit combined (AC7) › edit combined: both notes prefilled, edited, saved and synced (5696 ms)
+PASS  Scenario 5b — who made each version, and Edit combined (AC7) › edit combined with a differing result: Save is blocked until one is picked (5151 ms)
+PASS  Scenario 6 — failed sync keeps changes queued and recovers (AC8) › server errors (500): queued, visible, recovers on retry (7743 ms)
+PASS  Scenario 6 — failed sync keeps changes queued and recovers (AC8) › server unreachable: queued, then recovers when it comes back (4109 ms)
+PASS  Swagger UI renders the API docs (AC10) (710 ms)
 
-11 passed, 0 failed, 0 flaky
+14 passed, 0 failed, 0 flaky

@@ -35,6 +35,20 @@ export class SitewardDb extends Dexie {
       outbox: '++seq, &opId, entityId',
       meta: 'key',
     });
+    // v2: outbox ops carry editedAt/editedOffline; inspections carry updatedBy. Ops queued by
+    // v1 get their creation time, and the next pull is a full one so cached rows get updatedBy.
+    this.version(2)
+      .stores({})
+      .upgrade(async (tx) => {
+        await tx
+          .table<OutboxOp>('outbox')
+          .toCollection()
+          .modify((op) => {
+            op.editedAt ??= op.createdAt;
+            op.editedOffline ??= false;
+          });
+        await tx.table<MetaRow, MetaKey>('meta').delete('lastPulledAt');
+      });
   }
 
   async getMeta<K extends MetaKey>(key: K): Promise<MetaValue<K> | undefined> {
