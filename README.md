@@ -211,6 +211,18 @@ test); the end-to-end tests run against the production build with a real service
 
 Icons are original inline SVGs; the logo and PWA icons were drawn for this project.
 
+### Time spent
+
+About **13 hours** in total, from 30 October to 1 November 2026:
+
+| Activity | Time |
+|---|---|
+| Requirements, acceptance criteria and build plan | 2 h |
+| Directing and reviewing the AI's implementation | 5 h |
+| Testing, fixing and verifying | 2 h |
+| Deployment (Neon, Render, Vercel) | 2 h |
+| Documentation and demo video | 2 h |
+
 ### AI assistance and contribution
 
 This project was built with substantial AI assistance, and this section describes the split as it
