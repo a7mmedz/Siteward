@@ -13,3 +13,9 @@ coverage/
 e2e/test-results/
 e2e/playwright-report/
 e2e/.auth/
+
+# Private planning and deployment notes (kept locally, not published)
+PLAN.md
+PROGRESS.md
+docs/DEPLOY.md
+docs/demo-script.md

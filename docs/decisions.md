@@ -96,7 +96,7 @@ Short ADRs: context, decision, alternative considered, tradeoff. Newest decision
 
 - **Context:** AC8 must be demonstrable live without killing the hosted server.
 - **Decision:** `FAIL_SYNC_RATE` (0–1) randomly fails syncs; `POST /api/dev/fail-next-sync { count, mode }` (supervisor, only when `DEMO_TOOLS=true`, otherwise 404) fails the next N syncs. `mode: "before"` fails without writing; `mode: "after"` applies and then returns 500, simulating a lost response so the retry visibly returns `duplicate` (AC6). State is in memory per server instance.
-- **Tradeoff:** Must stay disabled in a real production deployment; documented in DEPLOY.md.
+- **Tradeoff:** Must stay disabled in a real production deployment; documented in the deployment notes.
 
 ## ADR-015 — Client storage: IndexedDB (Dexie) for data, localStorage only for the token
 

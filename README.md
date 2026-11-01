@@ -13,6 +13,7 @@ resolved by a person, never silently.
 ---
 
 ## 1. Project and lane
+**Name:** Ahmed Badar Al Abri
 
 **Lane:** Web.
 
@@ -29,9 +30,8 @@ visit, and syncs later.
 
 ## 2. Requirements and status
 
-All criteria are covered by automated tests. ✅ = implemented and verified locally by the linked
-tests; hosting (AC10) is prepared and verified with production builds, and goes live when the
-deployment in [docs/DEPLOY.md](docs/DEPLOY.md) is done.
+All criteria are covered by automated tests. ✅ = implemented and verified by the linked tests;
+hosting (AC10) is live at the URLs in section 4.
 
 | ID | Criterion | Status | Evidence |
 |----|-----------|--------|----------|
@@ -44,7 +44,7 @@ deployment in [docs/DEPLOY.md](docs/DEPLOY.md) is done.
 | AC7 | Conflicting edits are detected and the user can resolve them (keep mine / keep server / edit combined), seeing who made each version and when. | ✅ | [backend/test/sync.test.ts](backend/test/sync.test.ts), [frontend/src/sync/engine.test.ts](frontend/src/sync/engine.test.ts), [frontend/src/data/combine.test.ts](frontend/src/data/combine.test.ts), [e2e/tests/04-conflict.spec.ts](e2e/tests/04-conflict.spec.ts) · [conflict screen](docs/evidence/ac7-conflict-screen.png), [authors](docs/evidence/ac7-conflict-authors.png), [resolved](docs/evidence/ac7-keep-mine-synced.png), [edit combined](docs/evidence/ac7-edit-combined-form.png), [combined synced](docs/evidence/ac7-edit-combined-synced.png) |
 | AC8 | Failed sync (server down / 500) keeps changes queued, shows status, and recovers on retry. | ✅ | [frontend/src/sync/engine.test.ts](frontend/src/sync/engine.test.ts) (backoff), [backend/test/sync.test.ts](backend/test/sync.test.ts) (demo tools), [e2e/tests/05-failure.spec.ts](e2e/tests/05-failure.spec.ts) (500s and unreachable server) · [queued](docs/evidence/ac8-sync-failed-queued.png), [recovered](docs/evidence/ac8-recovered.png) |
 | AC9 | Invalid input is rejected with clear messages on both client and server. | ✅ | [backend/test/sync.test.ts](backend/test/sync.test.ts), [backend/test/auth.test.ts](backend/test/auth.test.ts), [frontend/src/data/validation.test.ts](frontend/src/data/validation.test.ts), [e2e/tests/01-online.spec.ts](e2e/tests/01-online.spec.ts) · [login](docs/evidence/ac9-login-errors.png), [submit](docs/evidence/ac9-submit-validation.png) |
-| AC10 | Frontend and backend are hosted separately over HTTPS; API docs are available. | ✅ | [render.yaml](render.yaml), [frontend/vercel.json](frontend/vercel.json), [docs/DEPLOY.md](docs/DEPLOY.md), [docs/openapi.yaml](docs/openapi.yaml), [e2e/tests/06-api-docs.spec.ts](e2e/tests/06-api-docs.spec.ts) · [Swagger UI](docs/evidence/ac10-api-docs.png) |
+| AC10 | Frontend and backend are hosted separately over HTTPS; API docs are available. | ✅ | [render.yaml](render.yaml), [frontend/vercel.json](frontend/vercel.json), [docs/openapi.yaml](docs/openapi.yaml), [e2e/tests/06-api-docs.spec.ts](e2e/tests/06-api-docs.spec.ts) · [Swagger UI](docs/evidence/ac10-api-docs.png) |
 
 Latest end-to-end run: [docs/evidence/e2e-results.txt](docs/evidence/e2e-results.txt).
 
@@ -115,7 +115,7 @@ Sign in, wait for `Online · Synced`, then switch Chrome DevTools → Network to
 - **Cold start:** the API runs on Render's free tier, which sleeps after ~15 minutes idle. The first
   request after that takes ~30–60 s. The app stays usable meanwhile (it is offline-first) and syncs
   as soon as the API answers.
-- **Walkthrough** (full script with talking points: [docs/demo-script.md](docs/demo-script.md)):
+- **Walkthrough:**
   1. Sign in as each role; the supervisor sees everyone's inspections (AC1).
   2. Create, fill and submit an inspection online; see it on the server (AC2, AC9).
   3. Go offline, reload, edit, create, reload again (AC3, AC4).
@@ -135,7 +135,6 @@ Sign in, wait for `Online · Synced`, then switch Chrome DevTools → Network to
   ids, batch sync endpoint, idempotency via `opId`, version conflicts with user resolution, monorepo,
   hosting, and more).
 - [docs/openapi.yaml](docs/openapi.yaml) — API contract (served as Swagger UI at `/api/docs`).
-- [docs/DEPLOY.md](docs/DEPLOY.md) — deployment steps for Neon, Render and Vercel.
 
 **Stack:** React 19 + Vite 8 + TypeScript, React Router 7, Tailwind CSS 4, Dexie (IndexedDB),
 vite-plugin-pwa (Workbox), Zod · Node + Express 5 + TypeScript, Prisma 6, PostgreSQL 16, JWT,
@@ -217,19 +216,17 @@ Icons are original inline SVGs; the logo and PWA icons were drawn for this proje
 This project was built with substantial AI assistance, and this section describes the split as it
 happened.
 
-**Candidate.** Chose the Web lane, the field-inspection idea and the target users (inspectors and
-supervisors). Defined the requirements and the ten acceptance criteria, the stack, the offline/sync
+**Candidate.** Defined the requirements and the ten acceptance criteria, the stack, the offline/sync
 approach (IndexedDB outbox, client-generated ids, `opId` idempotency, version-based conflicts with
-user resolution), the design system, and the eleven-phase build plan in [PLAN.md](PLAN.md). Directed
+user resolution), the design system, and the eleven-phase build plan. Directed
 and reviewed the AI's work, deployed the frontend and backend, ran the demo, and verified the results.
 
-**AI (Claude Code, by Anthropic).** Working from PLAN.md under the candidate's direction, generated
+**AI (Claude Code, by Anthropic).** Working from that plan under the candidate's direction, generated
 most of the implementation code (backend, frontend, sync engine, service worker setup), the unit,
 integration and end-to-end tests, the deployment configuration, and the documentation, including this
 README. It ran the tests and builds at each phase, fixed the failures it found, and recorded the
 choices it made where the plan left room (for example the checklist-template endpoint, outbox
 coalescing and rebasing, and a non-destructive end-to-end database setup) as ADRs.
 
-**Record of the work.** [PLAN.md](PLAN.md) (the plan as given), [docs/decisions.md](docs/decisions.md)
-(every non-trivial choice and its tradeoff), [PROGRESS.md](PROGRESS.md) (what was done in each phase),
-and the commit history (one or more commits per phase).
+**Record of the work.** [docs/decisions.md](docs/decisions.md) (every non-trivial choice and its
+tradeoff) and the commit history (one or more commits per phase).

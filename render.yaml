@@ -1,4 +1,4 @@
-# Render Blueprint for the Siteward API (see docs/DEPLOY.md).
+# Render Blueprint for the Siteward API (Neon database, Render API, Vercel frontend).
 # The database is external (Neon recommended): paste its URL into DATABASE_URL when Render asks.
 services:
   - type: web
