@@ -44,7 +44,7 @@ export const DEFAULT_TEMPLATE = {
 export const SEED_USERS: { email: string; name: string; role: Role; passwordEnv: string }[] = [
   {
     email: 'inspector@siteward.test',
-    name: 'Maya Inspector',
+    name: 'Ahmed',
     role: 'inspector',
     passwordEnv: 'SEED_INSPECTOR_PASSWORD',
   },

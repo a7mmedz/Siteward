@@ -177,7 +177,7 @@ test.describe('Scenario 5b — who made each version, and Edit combined (AC7)', 
     expect(await serverInspection(request, supToken, id)).toMatchObject({
       notes: combined,
       version: 3,
-      updatedBy: { name: 'Maya Inspector', role: 'inspector' },
+      updatedBy: { name: 'Ahmed', role: 'inspector' },
     });
     const supervisor = await browser.newPage();
     await login(supervisor, 'supervisor');

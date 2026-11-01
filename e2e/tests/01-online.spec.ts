@@ -97,7 +97,7 @@ test.describe('Scenario 1 — online workflow (AC1, AC2, AC9)', () => {
     const mine = await serverInspections(request, inspectorToken);
     const all = await serverInspections(request, supervisorToken);
     expect(mine.length).toBeGreaterThan(0);
-    expect(mine.every((i) => i.inspectorName === 'Maya Inspector')).toBe(true);
+    expect(mine.every((i) => i.inspectorName === 'Ahmed')).toBe(true);
 
     // The supervisor creates one of their own; the inspector must not see it.
     await login(page, 'supervisor');
@@ -116,7 +116,7 @@ test.describe('Scenario 1 — online workflow (AC1, AC2, AC9)', () => {
       page
         .getByTestId('inspection-row')
         .filter({ hasText: `Northgate quarterly safety walk ${RUN}` }),
-    ).toContainText('Maya Inspector');
+    ).toContainText('Ahmed');
     await evidence(page, 'ac1-supervisor-list');
   });
 });
