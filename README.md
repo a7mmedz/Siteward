@@ -154,13 +154,13 @@ docs/      Architecture, sync protocol, ADRs, OpenAPI, deploy guide, demo script
 ```bash
 npm run db:up
 npm run lint && npm run typecheck
-npm test            # backend: 49 tests · frontend: 23 tests
-npm run test:e2e    # 11 Playwright scenarios (Chromium, Pixel 7 profile)
+npm test            # backend: 56 tests · frontend: 36 tests
+npm run test:e2e    # 14 Playwright scenarios (Chromium, Pixel 7 profile)
 npm run build
 ```
 
-Latest results (local, Windows 11, Node 24): lint and typecheck clean; **49/49** backend,
-**23/23** frontend, **11/11** end-to-end (stable over three consecutive runs); production builds
+Latest results (local, Windows 11, Node 24): lint and typecheck clean; **56/56** backend,
+**36/36** frontend, **14/14** end-to-end (stable over three consecutive runs); production builds
 succeed. The backend tests run against a real PostgreSQL database (`siteward_test`, truncated per
 test); the end-to-end tests run against the production build with a real service worker.
 
