@@ -25,7 +25,7 @@ services:
       - key: JWT_EXPIRES_IN
         value: 7d
       - key: CORS_ORIGIN
-        sync: false # e.g. https://siteward.vercel.app (comma-separate several)
+        sync: false # e.g. https://siteward-beta.vercel.app (comma-separate several)
       - key: TRUST_PROXY
         value: '1' # Render sits behind one proxy: real client IPs for rate limiting
       - key: LOG_LEVEL

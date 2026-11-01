@@ -8,7 +8,7 @@ Total time: about 20 minutes.
 
 ```
 Browser ──HTTPS──▶ Vercel (static PWA, frontend/)        Render (Express API, backend/) ──TLS──▶ Neon Postgres
-        └─────────HTTPS (CORS, Bearer JWT)────────────▶ https://siteward-api.onrender.com/api
+        └─────────HTTPS (CORS, Bearer JWT)────────────▶ https://siteward-api-l71o.onrender.com/api
 ```
 
 ---
@@ -38,7 +38,7 @@ Browser ──HTTPS──▶ Vercel (static PWA, frontend/)        Render (Expre
    | Variable | Value |
    |---|---|
    | `DATABASE_URL` | the Neon URL from step 1 |
-   | `CORS_ORIGIN` | your Vercel URL, e.g. `https://siteward.vercel.app` (you can fill it after step 3; add preview URLs comma-separated if needed) |
+   | `CORS_ORIGIN` | your Vercel URL, e.g. `https://siteward-beta.vercel.app` (you can fill it after step 3; add preview URLs comma-separated if needed) |
    | `SEED_INSPECTOR_PASSWORD` | your inspector demo password |
    | `SEED_SUPERVISOR_PASSWORD` | your supervisor demo password |
 
@@ -57,8 +57,8 @@ Browser ──HTTPS──▶ Vercel (static PWA, frontend/)        Render (Expre
    command on your machine with `DATABASE_URL`, `SEED_INSPECTOR_PASSWORD` and
    `SEED_SUPERVISOR_PASSWORD` set to the production values.
 5. Verify:
-   - `https://<your-service>.onrender.com/api/health` → `{"status":"ok","db":"up",…}`
-   - `https://<your-service>.onrender.com/api/docs` → Swagger UI
+   - `https://siteward-api-l71o.onrender.com/api/health` → `{"status":"ok","db":"up",…}`
+   - `https://siteward-api-l71o.onrender.com/api/docs` → Swagger UI
 
 > **Free-tier cold start:** a free Render service sleeps after ~15 minutes without traffic, and the
 > first request then takes ~30–60 s. Open `/api/health` a minute before a demo. The app itself keeps
@@ -76,7 +76,7 @@ Browser ──HTTPS──▶ Vercel (static PWA, frontend/)        Render (Expre
 
    | Variable | Value |
    |---|---|
-   | `VITE_API_URL` | `https://<your-service>.onrender.com/api` |
+   | `VITE_API_URL` | `https://siteward-api-l71o.onrender.com/api` |
 
    The build fails on purpose if this is missing on Vercel.
 4. **Deploy**, then copy the production URL into Render's `CORS_ORIGIN` (step 2.2) if you have not

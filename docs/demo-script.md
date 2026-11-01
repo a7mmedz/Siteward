@@ -6,7 +6,7 @@ scenarios run automatically in `npm run test:e2e`; screenshots from that run are
 
 ## Setup (before the demo)
 
-- **Hosted:** open `https://<api>/api/health` a minute early (Render free tier cold start).
+- **Hosted:** open `https://siteward-api-l71o.onrender.com/api/health` a minute early (Render free tier cold start).
   **Local:** `npm run db:up && npm run dev` with `DEMO_TOOLS=true` in `backend/.env`, or for offline
   steps use the production build: `npm run build && npm run preview -w frontend` (port 4173).
 - Two browser windows side by side:
@@ -102,7 +102,7 @@ scenarios run automatically in `npm run test:e2e`; screenshots from that run are
 ## 8. Hosting and API docs (AC10)
 
 1. Show the two URLs: Vercel (frontend) and Render (API), both `https://`.
-2. Open `https://<api>/api/docs`: Swagger UI with `/sync`, `/inspections`, the error shape and the
+2. Open `https://siteward-api-l71o.onrender.com/api/docs`: Swagger UI with `/sync`, `/inspections`, the error shape and the
    per-op result table.
 
 ## Closing line

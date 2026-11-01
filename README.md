@@ -7,9 +7,8 @@ Inspectors fill checklists on site with no connectivity; changes are stored on t
 when the network returns, de-duplicated by the server, and conflicts with supervisors' edits are
 resolved by a person, never silently.
 
-> Live demo: **Frontend:** `https://<your-app>.vercel.app` · **API:** `https://<your-api>.onrender.com/api` ·
-> **API docs:** `https://<your-api>.onrender.com/api/docs`
-> _(URLs are filled in after deployment; see [Needs human](PROGRESS.md#needs-human).)_
+> Live demo: **Frontend:** <https://siteward-beta.vercel.app> · **API:** <https://siteward-api-l71o.onrender.com/api> ·
+> **API docs:** <https://siteward-api-l71o.onrender.com/api/docs>
 
 ---
 
@@ -45,7 +44,7 @@ deployment in [docs/DEPLOY.md](docs/DEPLOY.md) is done.
 | AC7 | Conflicting edits are detected and the user can resolve them (keep mine / keep server / edit combined), seeing who made each version and when. | ✅ | [backend/test/sync.test.ts](backend/test/sync.test.ts), [frontend/src/sync/engine.test.ts](frontend/src/sync/engine.test.ts), [frontend/src/data/combine.test.ts](frontend/src/data/combine.test.ts), [e2e/tests/04-conflict.spec.ts](e2e/tests/04-conflict.spec.ts) · [conflict screen](docs/evidence/ac7-conflict-screen.png), [authors](docs/evidence/ac7-conflict-authors.png), [resolved](docs/evidence/ac7-keep-mine-synced.png), [edit combined](docs/evidence/ac7-edit-combined-form.png), [combined synced](docs/evidence/ac7-edit-combined-synced.png) |
 | AC8 | Failed sync (server down / 500) keeps changes queued, shows status, and recovers on retry. | ✅ | [frontend/src/sync/engine.test.ts](frontend/src/sync/engine.test.ts) (backoff), [backend/test/sync.test.ts](backend/test/sync.test.ts) (demo tools), [e2e/tests/05-failure.spec.ts](e2e/tests/05-failure.spec.ts) (500s and unreachable server) · [queued](docs/evidence/ac8-sync-failed-queued.png), [recovered](docs/evidence/ac8-recovered.png) |
 | AC9 | Invalid input is rejected with clear messages on both client and server. | ✅ | [backend/test/sync.test.ts](backend/test/sync.test.ts), [backend/test/auth.test.ts](backend/test/auth.test.ts), [frontend/src/data/validation.test.ts](frontend/src/data/validation.test.ts), [e2e/tests/01-online.spec.ts](e2e/tests/01-online.spec.ts) · [login](docs/evidence/ac9-login-errors.png), [submit](docs/evidence/ac9-submit-validation.png) |
-| AC10 | Frontend and backend are hosted separately over HTTPS; API docs are available. | ⚠️ prepared, deploy pending | [render.yaml](render.yaml), [frontend/vercel.json](frontend/vercel.json), [docs/DEPLOY.md](docs/DEPLOY.md), [docs/openapi.yaml](docs/openapi.yaml), [e2e/tests/06-api-docs.spec.ts](e2e/tests/06-api-docs.spec.ts) · [Swagger UI](docs/evidence/ac10-api-docs.png) |
+| AC10 | Frontend and backend are hosted separately over HTTPS; API docs are available. | ✅ | [render.yaml](render.yaml), [frontend/vercel.json](frontend/vercel.json), [docs/DEPLOY.md](docs/DEPLOY.md), [docs/openapi.yaml](docs/openapi.yaml), [e2e/tests/06-api-docs.spec.ts](e2e/tests/06-api-docs.spec.ts) · [Swagger UI](docs/evidence/ac10-api-docs.png) |
 
 Latest end-to-end run: [docs/evidence/e2e-results.txt](docs/evidence/e2e-results.txt).
 
@@ -108,8 +107,8 @@ Sign in, wait for `Online · Synced`, then switch Chrome DevTools → Network to
 
 ## 4. Demo and access
 
-- **Frontend:** `https://<your-app>.vercel.app` _(placeholder)_
-- **API:** `https://<your-api>.onrender.com/api` · **API docs:** `/api/docs` _(placeholder)_
+- **Frontend:** <https://siteward-beta.vercel.app>
+- **API:** <https://siteward-api-l71o.onrender.com/api> · **API docs:** <https://siteward-api-l71o.onrender.com/api/docs> · **Health:** <https://siteward-api-l71o.onrender.com/api/health>
 - **Demo accounts:** `inspector@siteward.test` (inspector) and `supervisor@siteward.test`
   (supervisor). Passwords are **not** in the repository; they are set as `SEED_*_PASSWORD` on the
   server and shared with reviewers separately.

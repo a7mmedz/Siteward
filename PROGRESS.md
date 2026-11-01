@@ -90,8 +90,8 @@ Build plan: [PLAN.md](PLAN.md). Decisions: [docs/decisions.md](docs/decisions.md
 
 Everything below needs accounts, real secrets or a person; the repository is ready for each step.
 
-- [ ] **Deploy** following [docs/DEPLOY.md](docs/DEPLOY.md): create the Neon database, the Render service (Blueprint from `render.yaml`) and the Vercel project (root `frontend`); set `DATABASE_URL`, `CORS_ORIGIN`, `SEED_*_PASSWORD` on Render and `VITE_API_URL` on Vercel; run the seed once.
-- [ ] **Paste the live URLs** (frontend, API, `/api/docs`) into the README: the banner at the top and section 4 "Demo and access". Then change AC10 in the README table from ⚠️ to ✅.
+- [x] **Deploy** following [docs/DEPLOY.md](docs/DEPLOY.md): create the Neon database, the Render service (Blueprint from `render.yaml`) and the Vercel project (root `frontend`); set `DATABASE_URL`, `CORS_ORIGIN`, `SEED_*_PASSWORD` on Render and `VITE_API_URL` on Vercel; run the seed once.
+- [x] **Paste the live URLs** (frontend, API, `/api/docs`) into the README: the banner at the top and section 4 "Demo and access". Then change AC10 in the README table from ⚠️ to ✅.
 - [ ] **Share the demo passwords** with reviewers outside the repository.
 - [ ] **Record the demo video** following [docs/demo-script.md](docs/demo-script.md) (warm up the Render API first: cold start).
 - [ ] Optional hardening after deploy: add a Content-Security-Policy on Vercel with the final API host in `connect-src` (ADR-021); plan the Prisma 7 upgrade to clear the build-tool audit findings (ADR-005).
